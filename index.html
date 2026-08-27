@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Caleb Birthday Study</title>
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+
+            background: #111;
+
+            display: flex;
+            justify-content: center;
+            align-items: center;
+
+            font-family: Arial, sans-serif;
+        }
+
+        #game {
+            position: relative;
+
+            width: 430px;
+            height: 760px;
+
+            max-width: 100vw;
+            max-height: 100vh;
+
+            background: black;
+            overflow: hidden;
+        }
+
+        #storyVideo {
+            position: absolute;
+
+            top: 0;
+            left: 0;
+
+            width: 100%;
+            height: 100%;
+
+            object-fit: contain;
+
+            background: black;
+        }
+
+
+        /* Start screen */
+
+        #startScreen {
+            position: absolute;
+            inset: 0;
+
+            background: black;
+
+            display: flex;
+            justify-content: center;
+            align-items: center;
+
+            z-index: 20;
+        }
+
+        #startButton {
+            padding: 15px 35px;
+
+            border: none;
+            border-radius: 30px;
+
+            background: white;
+            color: black;
+
+            font-size: 18px;
+
+            cursor: pointer;
+        }
+
+
+        /* 
+        Transparent screen that becomes clickable
+        only after each video ends
+        */
+
+        #clickScreen {
+            position: absolute;
+            inset: 0;
+
+            display: none;
+
+            background: transparent;
+
+            cursor: pointer;
+
+            z-index: 15;
+        }
+
+
+        /* Finish */
+
+        #finishScreen {
+            position: absolute;
+            inset: 0;
+
+            display: none;
+
+            justify-content: center;
+            align-items: center;
+
+            background: black;
+            color: white;
+
+            font-size: 20px;
+
+            z-index: 30;
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+<div id="game">
+
+    <video
+        id="storyVideo"
+        playsinline
+        preload="auto">
+    </video>
+
+
+    <!-- Invisible full-screen click area -->
+
+    <div id="clickScreen"></div>
+
+
+    <!-- Begin -->
+
+    <div id="startScreen">
+
+        <button id="startButton">
+            Begin
+        </button>
+
+    </div>
+
+
+    <!-- Finished -->
+
+    <div id="finishScreen">
+        Story Complete
+    </div>
+
+</div>
+
+
+
+<script>
+
+
+    /* ============================================
+       VIDEO LIST
+    ============================================ */
+
+    const videos = [
+
+        "assets/Caleb Birthday 1.mp4",
+
+        "assets/Caleb Birthday 2.mp4",
+
+        "assets/Caleb Birthday 3.mp4",
+
+        "assets/Caleb Birthday 4.mp4",
+
+        "assets/Caleb Birthday 5.mp4",
+
+        "assets/Caleb Birthday 6.mp4"
+
+    ];
+
+
+
+    /* ============================================
+       VARIABLES
+    ============================================ */
+
+    let currentVideo = 0;
+
+    let clickStartTime = 0;
+
+    let clickData = [];
+
+
+
+    /* ============================================
+       ELEMENTS
+    ============================================ */
+
+    const video =
+        document.getElementById("storyVideo");
+
+    const clickScreen =
+        document.getElementById("clickScreen");
+
+    const startScreen =
+        document.getElementById("startScreen");
+
+    const startButton =
+        document.getElementById("startButton");
+
+    const finishScreen =
+        document.getElementById("finishScreen");
+
+
+
+    /* ============================================
+       BEGIN
+    ============================================ */
+
+    startButton.addEventListener(
+        "click",
+        function () {
+
+            startScreen.style.display = "none";
+
+            currentVideo = 0;
+
+            playVideo();
+
+        }
+    );
+
+
+
+    /* ============================================
+       PLAY VIDEO
+    ============================================ */
+
+    function playVideo() {
+
+        // Disable clicking while video plays
+        clickScreen.style.display = "none";
+
+
+        // Load current video
+        video.src = videos[currentVideo];
+
+        video.load();
+
+
+        // Play
+        video.play()
+
+            .then(function () {
+
+                console.log(
+                    "Playing video",
+                    currentVideo + 1
+                );
+
+            })
+
+            .catch(function (error) {
+
+                console.error(error);
+
+                alert(
+                    "Could not play video:\n" +
+                    videos[currentVideo]
+                );
+
+            });
+
+    }
+
+
+
+    /* ============================================
+       VIDEO FINISHED
+    ============================================ */
+
+    video.addEventListener(
+        "ended",
+        function () {
+
+            /*
+            Video stays on its final frame.
+
+            Now the ENTIRE screen becomes clickable.
+            */
+
+            clickScreen.style.display = "block";
+
+
+            // Start reaction-time timer
+
+            clickStartTime =
+                performance.now();
+
+
+            console.log(
+                "Waiting for click after video",
+                currentVideo + 1
+            );
+
+        }
+    );
+
+
+
+    /* ============================================
+       CLICK ANYWHERE
+    ============================================ */
+
+    clickScreen.addEventListener(
+        "click",
+        function (event) {
+
+
+            const reactionTime =
+                performance.now()
+                -
+                clickStartTime;
+
+
+
+            /*
+            Optional:
+            record where participant clicked
+            */
+
+            const gameRect =
+                document
+                .getElementById("game")
+                .getBoundingClientRect();
+
+
+            const clickX =
+                event.clientX -
+                gameRect.left;
+
+
+            const clickY =
+                event.clientY -
+                gameRect.top;
+
+
+
+            /*
+            Store data
+            */
+
+            clickData.push({
+
+                interaction:
+                    currentVideo + 1,
+
+                reactionTime:
+                    Math.round(
+                        reactionTime
+                    ),
+
+                clickX:
+                    Math.round(clickX),
+
+                clickY:
+                    Math.round(clickY)
+
+            });
+
+
+
+            console.log(
+                "Interaction",
+                currentVideo + 1,
+
+                "RT:",
+                Math.round(reactionTime),
+
+                "ms"
+            );
+
+
+
+            /*
+            Disable clicking
+            */
+
+            clickScreen.style.display =
+                "none";
+
+
+            /*
+            Move to next video
+            */
+
+            currentVideo++;
+
+
+
+            if (
+                currentVideo <
+                videos.length
+            ) {
+
+                playVideo();
+
+            }
+
+
+            else {
+
+                finishStudy();
+
+            }
+
+        }
+    );
+
+
+
+    /* ============================================
+       FINISH
+    ============================================ */
+
+    function finishStudy() {
+
+        video.style.display =
+            "none";
+
+        clickScreen.style.display =
+            "none";
+
+        finishScreen.style.display =
+            "flex";
+
+
+        console.log(
+            "FINAL INTERACTION DATA:"
+        );
+
+        console.table(
+            clickData
+        );
+
+    }
+
+
+</script>
+
+
+</body>
+
+</html>
