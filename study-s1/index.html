@@ -144,7 +144,7 @@
 
         /*
          * Transparent click area.
-         * Enabled after videos 1–8 finish.
+         * Enabled after the first seven videos.
          */
 
         #clickScreen {
@@ -203,12 +203,11 @@
 
         <div id="clickScreen"></div>
 
-        <!-- Five-second introduction -->
+        <!-- Introduction -->
 
         <div id="introScreen">
             <p>
-                It’s New Year’s. Before the party begins,
-                he has come to your house to help with the cleaning.
+                It’s Sylus's birthday.
             </p>
         </div>
 
@@ -231,13 +230,10 @@
     <script>
         /*
          * Sylus video list.
-         *
-         * This page is inside study-c3, so ../ returns
-         * to the project folder before opening assets.
+         * Only videos 2–9 are used.
          */
 
         const videos = [
-            "../assets/sylus-high-intimacy/sylus high 1.mp4",
             "../assets/sylus-high-intimacy/sylus high 2.mp4",
             "../assets/sylus-high-intimacy/sylus high 3.mp4",
             "../assets/sylus-high-intimacy/sylus high 4.mp4",
@@ -281,7 +277,7 @@
 
         /*
          * activeVideo is visible.
-         * standbyVideo preloads the next scene.
+         * standbyVideo preloads the next video.
          */
 
         let activeVideo = videoA;
@@ -310,8 +306,8 @@
         }
 
         /*
-         * Run a function after a real video frame
-         * has been decoded and rendered.
+         * Wait until a real video frame has been
+         * decoded and rendered.
          */
 
         function afterVideoFrame(
@@ -345,8 +341,10 @@
 
         /*
          * Begin:
-         * show the introduction for five seconds,
-         * load video 1 and preload video 2.
+         *
+         * 1. Show the introduction for five seconds.
+         * 2. Load Sylus video 2.
+         * 3. Preload Sylus video 3.
          */
 
         startButton.addEventListener(
@@ -368,6 +366,10 @@
                 activeVideo.style.opacity = "1";
                 activeVideo.style.zIndex = "2";
 
+                /*
+                 * 5000 milliseconds = 5 seconds.
+                 */
+
                 setTimeout(
                     function () {
                         playFirstVideo();
@@ -378,13 +380,17 @@
         );
 
         /*
-         * Play video 1.
-         * Keep the introduction visible until the
-         * first video frame is rendered.
+         * Play the first video in the list:
+         * sylus high 2.mp4
          */
 
         function playFirstVideo() {
             activeVideo.currentTime = 0;
+
+            /*
+             * Keep the introduction visible until
+             * the first frame is rendered.
+             */
 
             afterVideoFrame(
                 activeVideo,
@@ -398,7 +404,6 @@
                 .then(function () {
                     console.log(
                         "Playing video:",
-                        currentVideo + 1,
                         videos[currentVideo]
                     );
                 })
@@ -409,8 +414,9 @@
 
         /*
          * Play the preloaded next video.
-         * Keep the old final frame visible until the
-         * new first frame is rendered.
+         *
+         * The previous final frame remains visible
+         * until the new first frame is rendered.
          */
 
         function playPreloadedVideo() {
@@ -432,7 +438,7 @@
                 hasSwitched = true;
 
                 /*
-                 * Show the ready incoming video first.
+                 * Show the ready incoming video.
                  */
 
                 incomingVideo.style.zIndex = "3";
@@ -474,7 +480,6 @@
                 .then(function () {
                     console.log(
                         "Playing video:",
-                        currentVideo + 1,
                         videos[currentVideo]
                     );
                 })
@@ -497,8 +502,8 @@
                 videos.length - 1;
 
             /*
-             * Video 9 automatically completes
-             * the story.
+             * Sylus video 9 automatically
+             * completes the story.
              */
 
             if (isLastVideo) {
@@ -507,7 +512,7 @@
             }
 
             /*
-             * After videos 1–8, wait for a click.
+             * After videos 2–8, wait for a click.
              */
 
             clickStartTime =
@@ -517,8 +522,8 @@
                 "block";
 
             console.log(
-                "Waiting for click after video:",
-                currentVideo + 1
+                "Waiting for click after:",
+                videos[currentVideo]
             );
         }
 
