@@ -42,7 +42,8 @@
 
         /*
          * Two video elements are used.
-         * One plays while the other preloads the next scene.
+         * One displays the current video while
+         * the other preloads the next video.
          */
 
         .storyVideo {
@@ -56,15 +57,19 @@
             background: black;
 
             opacity: 0;
-
-            transition:
-                opacity 180ms ease;
-
             z-index: 1;
+
+            /*
+             * No opacity transition prevents a
+             * temporary black compositing frame.
+             */
+
+            transition: none;
         }
 
         #videoA {
             opacity: 1;
+            z-index: 2;
         }
 
         /* Begin screen */
@@ -204,7 +209,7 @@
 
         <div id="clickScreen"></div>
 
-        <!-- Introduction -->
+        <!-- Five-second introduction -->
 
         <div id="introScreen">
             <p>
@@ -232,9 +237,6 @@
     <script>
         /*
          * Birthday video list.
-         *
-         * This index.html and the assets folder
-         * are at the same folder level.
          */
 
         const videos = [
@@ -280,17 +282,21 @@
             document.getElementById("finishScreen");
 
         /*
-         * activeVideo is currently visible.
+         * activeVideo is visible.
          * standbyVideo preloads the next scene.
          */
 
         let activeVideo = videoA;
         let standbyVideo = videoB;
 
-        /* Load a video without displaying it */
+        /* Load a video into one of the players */
 
-        function preloadVideo(videoElement, videoIndex) {
+        function preloadVideo(
+            videoElement,
+            videoIndex
+        ) {
             videoElement.pause();
+
             videoElement.style.opacity = "0";
             videoElement.style.zIndex = "1";
 
@@ -306,55 +312,106 @@
         }
 
         /*
-         * Begin:
-         *
-         * 1. Display the introduction for five seconds.
-         * 2. Load video 1.
-         * 3. Preload video 2 in the background.
+         * Run a function after a real video frame
+         * has been decoded and rendered.
          */
 
-        startButton.addEventListener("click", function () {
-            startScreen.style.display = "none";
-            finishScreen.style.display = "none";
-            introScreen.style.display = "flex";
+        function afterVideoFrame(
+            videoElement,
+            callback
+        ) {
+            if (
+                typeof videoElement
+                    .requestVideoFrameCallback
+                === "function"
+            ) {
+                videoElement.requestVideoFrameCallback(
+                    callback
+                );
+            } else {
+                /*
+                 * Fallback for older browsers.
+                 */
 
-            currentVideo = 0;
-            clickData.length = 0;
+                videoElement.addEventListener(
+                    "playing",
+                    function () {
+                        requestAnimationFrame(
+                            function () {
+                                requestAnimationFrame(
+                                    callback
+                                );
+                            }
+                        );
+                    },
+                    { once: true }
+                );
+            }
+        }
 
-            activeVideo = videoA;
-            standbyVideo = videoB;
+        /*
+         * Begin:
+         *
+         * 1. Display the introduction.
+         * 2. Load video 1.
+         * 3. Preload video 2.
+         * 4. Begin playback after five seconds.
+         */
 
-            activeVideo.style.opacity = "1";
-            activeVideo.style.zIndex = "2";
+        startButton.addEventListener(
+            "click",
+            function () {
+                startScreen.style.display = "none";
+                finishScreen.style.display = "none";
+                introScreen.style.display = "flex";
 
-            standbyVideo.style.opacity = "0";
-            standbyVideo.style.zIndex = "1";
+                currentVideo = 0;
+                clickData.length = 0;
 
-            preloadVideo(activeVideo, 0);
-            preloadVideo(standbyVideo, 1);
+                activeVideo = videoA;
+                standbyVideo = videoB;
 
-            /*
-             * preloadVideo hides the element, so make
-             * the first player visible again.
-             */
+                preloadVideo(activeVideo, 0);
+                preloadVideo(standbyVideo, 1);
 
-            activeVideo.style.opacity = "1";
-            activeVideo.style.zIndex = "2";
+                /*
+                 * The introduction covers the video,
+                 * but the first player remains ready.
+                 */
 
-            /*
-             * 5000 milliseconds = 5 seconds.
-             */
+                activeVideo.style.opacity = "1";
+                activeVideo.style.zIndex = "2";
 
-            setTimeout(function () {
-                introScreen.style.display = "none";
-                playFirstVideo();
-            }, 5000);
-        });
+                /*
+                 * 5000 milliseconds = 5 seconds.
+                 */
 
-        /* Play video 1 */
+                setTimeout(
+                    function () {
+                        playFirstVideo();
+                    },
+                    5000
+                );
+            }
+        );
+
+        /*
+         * Play video 1.
+         *
+         * Keep the introduction visible until the
+         * first video frame is actually rendered.
+         */
 
         function playFirstVideo() {
             activeVideo.currentTime = 0;
+
+            afterVideoFrame(
+                activeVideo,
+                function () {
+                    introScreen.style.display =
+                        "none";
+                }
+            );
 
             activeVideo.play()
                 .then(function () {
@@ -370,68 +427,75 @@
         }
 
         /*
-         * Switch to the already preloaded video.
+         * Play the preloaded next video.
          *
-         * The old video's final frame remains visible
-         * until the next video is actually playing.
+         * The outgoing video's last frame remains
+         * visible until the incoming video's first
+         * frame is actually rendered.
          */
 
         function playPreloadedVideo() {
-            const outgoingVideo = activeVideo;
-            const incomingVideo = standbyVideo;
+            const outgoingVideo =
+                activeVideo;
 
-            let hasRevealedVideo = false;
+            const incomingVideo =
+                standbyVideo;
+
+            let hasSwitched = false;
 
             incomingVideo.currentTime = 0;
 
-            function revealIncomingVideo() {
-                if (hasRevealedVideo) {
+            function switchToIncomingVideo() {
+                if (hasSwitched) {
                     return;
                 }
 
-                hasRevealedVideo = true;
+                hasSwitched = true;
 
                 /*
-                 * Fade the incoming scene over the final
-                 * frame of the outgoing scene.
+                 * First display the ready video.
                  */
 
                 incomingVideo.style.zIndex = "3";
                 incomingVideo.style.opacity = "1";
 
-                outgoingVideo.style.zIndex = "2";
+                /*
+                 * Now hide the previous video's
+                 * final frame.
+                 */
 
-                setTimeout(function () {
-                    outgoingVideo.style.opacity = "0";
-                    outgoingVideo.style.zIndex = "1";
+                outgoingVideo.style.opacity = "0";
+                outgoingVideo.style.zIndex = "1";
 
-                    activeVideo = incomingVideo;
-                    standbyVideo = outgoingVideo;
+                /*
+                 * Exchange player roles.
+                 */
 
-                    /*
-                     * The old player is now hidden, so it
-                     * can preload the following video.
-                     */
+                activeVideo = incomingVideo;
+                standbyVideo = outgoingVideo;
 
-                    preloadVideo(
-                        standbyVideo,
-                        currentVideo + 1
-                    );
+                activeVideo.style.opacity = "1";
+                activeVideo.style.zIndex = "2";
 
-                    activeVideo.style.opacity = "1";
-                    activeVideo.style.zIndex = "2";
-                }, 200);
+                /*
+                 * The hidden player can now preload
+                 * the following video.
+                 */
+
+                preloadVideo(
+                    standbyVideo,
+                    currentVideo + 1
+                );
             }
 
             /*
-             * Do not remove the old frame until the browser
-             * confirms the new video is playing.
+             * Wait for an actual decoded video frame
+             * before switching the visible player.
              */
 
-            incomingVideo.addEventListener(
-                "playing",
-                revealIncomingVideo,
-                { once: true }
+            afterVideoFrame(
+                incomingVideo,
+                switchToIncomingVideo
             );
 
             incomingVideo.play()
@@ -443,11 +507,6 @@
                     );
                 })
                 .catch(function (error) {
-                    incomingVideo.removeEventListener(
-                        "playing",
-                        revealIncomingVideo
-                    );
-
                     showPlaybackError(error);
                 });
         }
@@ -456,18 +515,23 @@
 
         function handleVideoEnded(event) {
             /*
-             * Ignore an ended event from a hidden player.
+             * Ignore an ended event from a hidden
+             * or inactive video player.
              */
 
-            if (event.currentTarget !== activeVideo) {
+            if (
+                event.currentTarget !== activeVideo
+            ) {
                 return;
             }
 
             const isLastVideo =
-                currentVideo === videos.length - 1;
+                currentVideo ===
+                videos.length - 1;
 
             /*
-             * Video 8 automatically finishes the study.
+             * Video 8 automatically finishes
+             * the study.
              */
 
             if (isLastVideo) {
@@ -476,12 +540,14 @@
             }
 
             /*
-             * After videos 1–7, wait for the participant
-             * to click anywhere.
+             * After videos 1–7, wait for a click.
              */
 
-            clickStartTime = performance.now();
-            clickScreen.style.display = "block";
+            clickStartTime =
+                performance.now();
+
+            clickScreen.style.display =
+                "block";
 
             console.log(
                 "Waiting for click after video:",
@@ -501,43 +567,64 @@
 
         /* Click anywhere to continue */
 
-        clickScreen.addEventListener("click", function (event) {
-            const reactionTime =
-                performance.now() - clickStartTime;
+        clickScreen.addEventListener(
+            "click",
+            function (event) {
+                const reactionTime =
+                    performance.now()
+                    -
+                    clickStartTime;
 
-            const gameRect =
-                game.getBoundingClientRect();
+                const gameRect =
+                    game.getBoundingClientRect();
 
-            const clickX =
-                event.clientX - gameRect.left;
+                const clickX =
+                    event.clientX
+                    -
+                    gameRect.left;
 
-            const clickY =
-                event.clientY - gameRect.top;
+                const clickY =
+                    event.clientY
+                    -
+                    gameRect.top;
 
-            clickData.push({
-                interaction: currentVideo + 1,
-                video: videos[currentVideo],
-                reactionTime: Math.round(reactionTime),
-                clickX: Math.round(clickX),
-                clickY: Math.round(clickY)
-            });
+                clickData.push({
+                    interaction:
+                        currentVideo + 1,
 
-            console.log(
-                "Interaction:",
-                currentVideo + 1,
-                "Reaction time:",
-                Math.round(reactionTime),
-                "ms"
-            );
+                    video:
+                        videos[currentVideo],
 
-            clickScreen.style.display = "none";
+                    reactionTime:
+                        Math.round(
+                            reactionTime
+                        ),
 
-            currentVideo++;
+                    clickX:
+                        Math.round(clickX),
 
-            playPreloadedVideo();
-        });
+                    clickY:
+                        Math.round(clickY)
+                });
 
-        /* Display a playback error */
+                console.log(
+                    "Interaction:",
+                    currentVideo + 1,
+                    "Reaction time:",
+                    Math.round(reactionTime),
+                    "ms"
+                );
+
+                clickScreen.style.display =
+                    "none";
+
+                currentVideo++;
+
+                playPreloadedVideo();
+            }
+        );
+
+        /* Display playback errors */
 
         function showPlaybackError(error) {
             console.error(
@@ -546,7 +633,8 @@
             );
 
             alert(
-                "Could not play this video:\n" +
+                "Could not play this video:\n"
+                +
                 videos[currentVideo]
             );
         }
@@ -564,8 +652,13 @@
             clickScreen.style.display = "none";
             finishScreen.style.display = "flex";
 
-            console.log("BIRTHDAY STUDY COMPLETE");
-            console.log("FINAL INTERACTION DATA:");
+            console.log(
+                "BIRTHDAY STUDY COMPLETE"
+            );
+
+            console.log(
+                "FINAL INTERACTION DATA:"
+            );
 
             console.table(clickData);
         }

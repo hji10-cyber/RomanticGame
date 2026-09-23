@@ -8,7 +8,7 @@
         content="width=device-width, initial-scale=1.0"
     >
 
-    <title>Caleb Weak Intimacy Study</title>
+    <title>Caleb Study C2</title>
 
     <style>
         * {
@@ -40,9 +40,12 @@
             background: black;
         }
 
-        /* Video */
+        /*
+         * Two video players alternate.
+         * One plays while the other preloads.
+         */
 
-        #storyVideo {
+        .storyVideo {
             position: absolute;
             inset: 0;
 
@@ -51,6 +54,16 @@
 
             object-fit: contain;
             background: black;
+
+            opacity: 0;
+            z-index: 1;
+
+            transition: none;
+        }
+
+        #videoA {
+            opacity: 1;
+            z-index: 2;
         }
 
         /* Begin screen */
@@ -106,8 +119,6 @@
 
             z-index: 25;
         }
-
-        /* Introduction fade-in animation */
 
         #introScreen p {
             max-width: 350px;
@@ -172,10 +183,18 @@
 <body>
     <div id="game">
 
-        <!-- Story video -->
+        <!-- Two alternating video players -->
 
         <video
-            id="storyVideo"
+            id="videoA"
+            class="storyVideo"
+            playsinline
+            preload="auto">
+        </video>
+
+        <video
+            id="videoB"
+            class="storyVideo"
             playsinline
             preload="auto">
         </video>
@@ -184,7 +203,7 @@
 
         <div id="clickScreen"></div>
 
-        <!-- Introduction -->
+        <!-- Five-second introduction -->
 
         <div id="introScreen">
             <p>
@@ -213,13 +232,8 @@
         /*
          * Weak Intimacy video list.
          *
-         * This index.html is inside:
-         * caleb-weak-intimacy/
-         *
-         * The videos are inside:
-         * assets/caleb-weak-intimacy/
-         *
-         * Therefore each path begins with ../
+         * This page is inside study-c2, so ../ returns
+         * to the main project folder before opening assets.
          */
 
         const videos = [
@@ -240,8 +254,11 @@
         const game =
             document.getElementById("game");
 
-        const video =
-            document.getElementById("storyVideo");
+        const videoA =
+            document.getElementById("videoA");
+
+        const videoB =
+            document.getElementById("videoB");
 
         const clickScreen =
             document.getElementById("clickScreen");
@@ -259,49 +276,121 @@
             document.getElementById("finishScreen");
 
         /*
-         * Begin:
-         *
-         * 1. Hide the Begin screen.
-         * 2. Show the introduction for five seconds.
-         * 3. Automatically play video 1.
+         * activeVideo is visible.
+         * standbyVideo preloads the next scene.
          */
 
-        startButton.addEventListener("click", function () {
-            startScreen.style.display = "none";
-            finishScreen.style.display = "none";
-            introScreen.style.display = "flex";
+        let activeVideo = videoA;
+        let standbyVideo = videoB;
 
-            currentVideo = 0;
-            clickData.length = 0;
+        /* Preload a video */
 
-            /*
-             * Preload the first video while the
-             * introduction is being displayed.
-             */
+        function preloadVideo(
+            videoElement,
+            videoIndex
+        ) {
+            videoElement.pause();
 
-            video.src = videos[0];
-            video.load();
+            videoElement.style.opacity = "0";
+            videoElement.style.zIndex = "1";
 
-            /*
-             * 5000 milliseconds = 5 seconds.
-             */
+            if (videoIndex >= videos.length) {
+                videoElement.removeAttribute("src");
+                videoElement.load();
+                return;
+            }
 
-            setTimeout(function () {
-                introScreen.style.display = "none";
-                playCurrentVideo();
-            }, 5000);
-        });
+            videoElement.src = videos[videoIndex];
+            videoElement.preload = "auto";
+            videoElement.load();
+        }
 
-        /* Play the current video */
+        /*
+         * Run a function after a real video frame
+         * has been decoded and rendered.
+         */
 
-        function playCurrentVideo() {
-            clickScreen.style.display = "none";
-            video.style.display = "block";
+        function afterVideoFrame(
+            videoElement,
+            callback
+        ) {
+            if (
+                typeof videoElement
+                    .requestVideoFrameCallback
+                === "function"
+            ) {
+                videoElement.requestVideoFrameCallback(
+                    callback
+                );
+            } else {
+                videoElement.addEventListener(
+                    "playing",
+                    function () {
+                        requestAnimationFrame(
+                            function () {
+                                requestAnimationFrame(
+                                    callback
+                                );
+                            }
+                        );
+                    },
+                    { once: true }
+                );
+            }
+        }
 
-            video.src = videos[currentVideo];
-            video.load();
+        /*
+         * Begin:
+         * show the introduction for five seconds,
+         * load video 1 and preload video 2.
+         */
 
-            video.play()
+        startButton.addEventListener(
+            "click",
+            function () {
+                startScreen.style.display = "none";
+                finishScreen.style.display = "none";
+                introScreen.style.display = "flex";
+
+                currentVideo = 0;
+                clickData.length = 0;
+
+                activeVideo = videoA;
+                standbyVideo = videoB;
+
+                preloadVideo(activeVideo, 0);
+                preloadVideo(standbyVideo, 1);
+
+                activeVideo.style.opacity = "1";
+                activeVideo.style.zIndex = "2";
+
+                setTimeout(
+                    function () {
+                        playFirstVideo();
+                    },
+                    5000
+                );
+            }
+        );
+
+        /*
+         * Play video 1.
+         * Keep the introduction visible until the
+         * first video frame is rendered.
+         */
+
+        function playFirstVideo() {
+            activeVideo.currentTime = 0;
+
+            afterVideoFrame(
+                activeVideo,
+                function () {
+                    introScreen.style.display =
+                        "none";
+                }
+            );
+
+            activeVideo.play()
                 .then(function () {
                     console.log(
                         "Playing video:",
@@ -310,28 +399,102 @@
                     );
                 })
                 .catch(function (error) {
-                    console.error(
-                        "Video playback error:",
-                        error
-                    );
-
-                    alert(
-                        "Could not play this video:\n" +
-                        videos[currentVideo]
-                    );
+                    showPlaybackError(error);
                 });
         }
 
-        /* Handle the end of each video */
+        /*
+         * Play the preloaded next video.
+         * Keep the old final frame visible until the
+         * new first frame is rendered.
+         */
 
-        video.addEventListener("ended", function () {
+        function playPreloadedVideo() {
+            const outgoingVideo =
+                activeVideo;
+
+            const incomingVideo =
+                standbyVideo;
+
+            let hasSwitched = false;
+
+            incomingVideo.currentTime = 0;
+
+            function switchToIncomingVideo() {
+                if (hasSwitched) {
+                    return;
+                }
+
+                hasSwitched = true;
+
+                /*
+                 * Show the ready video first.
+                 */
+
+                incomingVideo.style.zIndex = "3";
+                incomingVideo.style.opacity = "1";
+
+                /*
+                 * Then hide the previous final frame.
+                 */
+
+                outgoingVideo.style.opacity = "0";
+                outgoingVideo.style.zIndex = "1";
+
+                /*
+                 * Exchange player roles.
+                 */
+
+                activeVideo = incomingVideo;
+                standbyVideo = outgoingVideo;
+
+                activeVideo.style.opacity = "1";
+                activeVideo.style.zIndex = "2";
+
+                /*
+                 * Preload the following video.
+                 */
+
+                preloadVideo(
+                    standbyVideo,
+                    currentVideo + 1
+                );
+            }
+
+            afterVideoFrame(
+                incomingVideo,
+                switchToIncomingVideo
+            );
+
+            incomingVideo.play()
+                .then(function () {
+                    console.log(
+                        "Playing video:",
+                        currentVideo + 1,
+                        videos[currentVideo]
+                    );
+                })
+                .catch(function (error) {
+                    showPlaybackError(error);
+                });
+        }
+
+        /* Handle the end of both video players */
+
+        function handleVideoEnded(event) {
+            if (
+                event.currentTarget !== activeVideo
+            ) {
+                return;
+            }
+
             const isLastVideo =
-                currentVideo === videos.length - 1;
+                currentVideo ===
+                videos.length - 1;
 
             /*
-             * Video 5 is the final video.
-             * End the study automatically without
-             * requiring another click.
+             * Video 5 automatically completes
+             * the study.
              */
 
             if (isLastVideo) {
@@ -340,73 +503,125 @@
             }
 
             /*
-             * After videos 1–4, enable the transparent
-             * click area and begin measuring reaction time.
+             * After videos 1–4, wait for a click.
              */
 
-            clickStartTime = performance.now();
-            clickScreen.style.display = "block";
+            clickStartTime =
+                performance.now();
+
+            clickScreen.style.display =
+                "block";
 
             console.log(
                 "Waiting for click after video:",
                 currentVideo + 1
             );
-        });
+        }
+
+        videoA.addEventListener(
+            "ended",
+            handleVideoEnded
+        );
+
+        videoB.addEventListener(
+            "ended",
+            handleVideoEnded
+        );
 
         /* Click anywhere to continue */
 
-        clickScreen.addEventListener("click", function (event) {
-            const reactionTime =
-                performance.now() - clickStartTime;
+        clickScreen.addEventListener(
+            "click",
+            function (event) {
+                const reactionTime =
+                    performance.now()
+                    -
+                    clickStartTime;
 
-            const gameRect =
-                game.getBoundingClientRect();
+                const gameRect =
+                    game.getBoundingClientRect();
 
-            const clickX =
-                event.clientX - gameRect.left;
+                const clickX =
+                    event.clientX
+                    -
+                    gameRect.left;
 
-            const clickY =
-                event.clientY - gameRect.top;
+                const clickY =
+                    event.clientY
+                    -
+                    gameRect.top;
 
-            /*
-             * Save interaction information.
-             */
+                clickData.push({
+                    interaction:
+                        currentVideo + 1,
 
-            clickData.push({
-                interaction: currentVideo + 1,
-                video: videos[currentVideo],
-                reactionTime: Math.round(reactionTime),
-                clickX: Math.round(clickX),
-                clickY: Math.round(clickY)
-            });
+                    video:
+                        videos[currentVideo],
 
-            console.log(
-                "Interaction:",
-                currentVideo + 1,
-                "Reaction time:",
-                Math.round(reactionTime),
-                "ms"
+                    reactionTime:
+                        Math.round(
+                            reactionTime
+                        ),
+
+                    clickX:
+                        Math.round(clickX),
+
+                    clickY:
+                        Math.round(clickY)
+                });
+
+                console.log(
+                    "Interaction:",
+                    currentVideo + 1,
+                    "Reaction time:",
+                    Math.round(reactionTime),
+                    "ms"
+                );
+
+                clickScreen.style.display =
+                    "none";
+
+                currentVideo++;
+
+                playPreloadedVideo();
+            }
+        );
+
+        /* Display playback errors */
+
+        function showPlaybackError(error) {
+            console.error(
+                "Video playback error:",
+                error
             );
 
-            clickScreen.style.display = "none";
-
-            currentVideo++;
-
-            playCurrentVideo();
-        });
+            alert(
+                "Could not play this video:\n"
+                +
+                videos[currentVideo]
+            );
+        }
 
         /* Automatically finish after video 5 */
 
         function finishStudy() {
-            video.pause();
-            video.style.display = "none";
+            videoA.pause();
+            videoB.pause();
+
+            videoA.style.opacity = "0";
+            videoB.style.opacity = "0";
 
             introScreen.style.display = "none";
             clickScreen.style.display = "none";
             finishScreen.style.display = "flex";
 
-            console.log("WEAK INTIMACY STUDY COMPLETE");
-            console.log("FINAL INTERACTION DATA:");
+            console.log(
+                "STUDY C2 COMPLETE"
+            );
+
+            console.log(
+                "FINAL INTERACTION DATA:"
+            );
 
             console.table(clickData);
         }
