@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Study C3</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+
+            display: flex;
+            justify-content: center;
+            align-items: center;
+
+            background: #111;
+            font-family: Arial, sans-serif;
+        }
+
+        #game {
+            position: relative;
+
+            width: 430px;
+            height: 760px;
+
+            max-width: 100vw;
+            max-height: 100vh;
+
+            overflow: hidden;
+            background: black;
+        }
+
+        /*
+         * Two video players alternate.
+         * One plays while the other preloads.
+         */
+
+        .storyVideo {
+            position: absolute;
+            inset: 0;
+
+            width: 100%;
+            height: 100%;
+
+            object-fit: contain;
+            background: black;
+
+            opacity: 0;
+            z-index: 1;
+
+            transition: none;
+        }
+
+        #videoA {
+            opacity: 1;
+            z-index: 2;
+        }
+
+        /* Begin screen */
+
+        #startScreen {
+            position: absolute;
+            inset: 0;
+
+            display: flex;
+            justify-content: center;
+            align-items: center;
+
+            background: black;
+
+            z-index: 30;
+        }
+
+        #startButton {
+            padding: 15px 35px;
+
+            border: none;
+            border-radius: 30px;
+
+            background: white;
+            color: black;
+
+            font-size: 18px;
+            cursor: pointer;
+        }
+
+        #startButton:hover {
+            background: #e8e8e8;
+        }
+
+        /* Five-second introduction */
+
+        #introScreen {
+            position: absolute;
+            inset: 0;
+
+            display: none;
+            justify-content: center;
+            align-items: center;
+
+            padding: 40px;
+
+            background: black;
+            color: white;
+
+            text-align: center;
+            font-size: 20px;
+            line-height: 1.6;
+
+            z-index: 25;
+        }
+
+        #introScreen p {
+            max-width: 350px;
+            margin: 0;
+
+            opacity: 0;
+
+            animation:
+                introFadeIn 1.5s ease-out 0.2s forwards;
+        }
+
+        @keyframes introFadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(12px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /*
+         * Transparent click area.
+         * Enabled after videos 1–8 finish.
+         */
+
+        #clickScreen {
+            position: absolute;
+            inset: 0;
+
+            display: none;
+
+            background: transparent;
+            cursor: pointer;
+
+            z-index: 15;
+        }
+
+        /* Completion screen */
+
+        #finishScreen {
+            position: absolute;
+            inset: 0;
+
+            display: none;
+            justify-content: center;
+            align-items: center;
+
+            background: black;
+            color: white;
+
+            font-size: 20px;
+            text-align: center;
+
+            z-index: 40;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="game">
+
+        <!-- Two alternating video players -->
+
+        <video
+            id="videoA"
+            class="storyVideo"
+            playsinline
+            preload="auto">
+        </video>
+
+        <video
+            id="videoB"
+            class="storyVideo"
+            playsinline
+            preload="auto">
+        </video>
+
+        <!-- Click anywhere to continue -->
+
+        <div id="clickScreen"></div>
+
+        <!-- Five-second introduction -->
+
+        <div id="introScreen">
+            <p>
+                It’s New Year’s. Before the party begins,
+                he has come to your house to help with the cleaning.
+            </p>
+        </div>
+
+        <!-- Start screen -->
+
+        <div id="startScreen">
+            <button id="startButton" type="button">
+                Begin
+            </button>
+        </div>
+
+        <!-- Completion screen -->
+
+        <div id="finishScreen">
+            Story Complete
+        </div>
+
+    </div>
+
+    <script>
+        /*
+         * Sylus video list.
+         *
+         * This page is inside study-c3, so ../ returns
+         * to the project folder before opening assets.
+         */
+
+        const videos = [
+            "../assets/sylus-high-intimacy/sylus high 1.mp4",
+            "../assets/sylus-high-intimacy/sylus high 2.mp4",
+            "../assets/sylus-high-intimacy/sylus high 3.mp4",
+            "../assets/sylus-high-intimacy/sylus high 4.mp4",
+            "../assets/sylus-high-intimacy/sylus high 5.mp4",
+            "../assets/sylus-high-intimacy/sylus high 6.mp4",
+            "../assets/sylus-high-intimacy/sylus high 7.mp4",
+            "../assets/sylus-high-intimacy/sylus high 8.mp4",
+            "../assets/sylus-high-intimacy/sylus high 9.mp4"
+        ];
+
+        let currentVideo = 0;
+        let clickStartTime = 0;
+
+        const clickData = [];
+
+        /* Page elements */
+
+        const game =
+            document.getElementById("game");
+
+        const videoA =
+            document.getElementById("videoA");
+
+        const videoB =
+            document.getElementById("videoB");
+
+        const clickScreen =
+            document.getElementById("clickScreen");
+
+        const introScreen =
+            document.getElementById("introScreen");
+
+        const startScreen =
+            document.getElementById("startScreen");
+
+        const startButton =
+            document.getElementById("startButton");
+
+        const finishScreen =
+            document.getElementById("finishScreen");
+
+        /*
+         * activeVideo is visible.
+         * standbyVideo preloads the next scene.
+         */
+
+        let activeVideo = videoA;
+        let standbyVideo = videoB;
+
+        /* Preload a video */
+
+        function preloadVideo(
+            videoElement,
+            videoIndex
+        ) {
+            videoElement.pause();
+
+            videoElement.style.opacity = "0";
+            videoElement.style.zIndex = "1";
+
+            if (videoIndex >= videos.length) {
+                videoElement.removeAttribute("src");
+                videoElement.load();
+                return;
+            }
+
+            videoElement.src = videos[videoIndex];
+            videoElement.preload = "auto";
+            videoElement.load();
+        }
+
+        /*
+         * Run a function after a real video frame
+         * has been decoded and rendered.
+         */
+
+        function afterVideoFrame(
+            videoElement,
+            callback
+        ) {
+            if (
+                typeof videoElement
+                    .requestVideoFrameCallback
+                === "function"
+            ) {
+                videoElement.requestVideoFrameCallback(
+                    callback
+                );
+            } else {
+                videoElement.addEventListener(
+                    "playing",
+                    function () {
+                        requestAnimationFrame(
+                            function () {
+                                requestAnimationFrame(
+                                    callback
+                                );
+                            }
+                        );
+                    },
+                    { once: true }
+                );
+            }
+        }
+
+        /*
+         * Begin:
+         * show the introduction for five seconds,
+         * load video 1 and preload video 2.
+         */
+
+        startButton.addEventListener(
+            "click",
+            function () {
+                startScreen.style.display = "none";
+                finishScreen.style.display = "none";
+                introScreen.style.display = "flex";
+
+                currentVideo = 0;
+                clickData.length = 0;
+
+                activeVideo = videoA;
+                standbyVideo = videoB;
+
+                preloadVideo(activeVideo, 0);
+                preloadVideo(standbyVideo, 1);
+
+                activeVideo.style.opacity = "1";
+                activeVideo.style.zIndex = "2";
+
+                setTimeout(
+                    function () {
+                        playFirstVideo();
+                    },
+                    5000
+                );
+            }
+        );
+
+        /*
+         * Play video 1.
+         * Keep the introduction visible until the
+         * first video frame is rendered.
+         */
+
+        function playFirstVideo() {
+            activeVideo.currentTime = 0;
+
+            afterVideoFrame(
+                activeVideo,
+                function () {
+                    introScreen.style.display =
+                        "none";
+                }
+            );
+
+            activeVideo.play()
+                .then(function () {
+                    console.log(
+                        "Playing video:",
+                        currentVideo + 1,
+                        videos[currentVideo]
+                    );
+                })
+                .catch(function (error) {
+                    showPlaybackError(error);
+                });
+        }
+
+        /*
+         * Play the preloaded next video.
+         * Keep the old final frame visible until the
+         * new first frame is rendered.
+         */
+
+        function playPreloadedVideo() {
+            const outgoingVideo =
+                activeVideo;
+
+            const incomingVideo =
+                standbyVideo;
+
+            let hasSwitched = false;
+
+            incomingVideo.currentTime = 0;
+
+            function switchToIncomingVideo() {
+                if (hasSwitched) {
+                    return;
+                }
+
+                hasSwitched = true;
+
+                /*
+                 * Show the ready incoming video first.
+                 */
+
+                incomingVideo.style.zIndex = "3";
+                incomingVideo.style.opacity = "1";
+
+                /*
+                 * Hide the previous final frame.
+                 */
+
+                outgoingVideo.style.opacity = "0";
+                outgoingVideo.style.zIndex = "1";
+
+                /*
+                 * Exchange player roles.
+                 */
+
+                activeVideo = incomingVideo;
+                standbyVideo = outgoingVideo;
+
+                activeVideo.style.opacity = "1";
+                activeVideo.style.zIndex = "2";
+
+                /*
+                 * Preload the following video.
+                 */
+
+                preloadVideo(
+                    standbyVideo,
+                    currentVideo + 1
+                );
+            }
+
+            afterVideoFrame(
+                incomingVideo,
+                switchToIncomingVideo
+            );
+
+            incomingVideo.play()
+                .then(function () {
+                    console.log(
+                        "Playing video:",
+                        currentVideo + 1,
+                        videos[currentVideo]
+                    );
+                })
+                .catch(function (error) {
+                    showPlaybackError(error);
+                });
+        }
+
+        /* Handle the end of both video players */
+
+        function handleVideoEnded(event) {
+            if (
+                event.currentTarget !== activeVideo
+            ) {
+                return;
+            }
+
+            const isLastVideo =
+                currentVideo ===
+                videos.length - 1;
+
+            /*
+             * Video 9 automatically completes
+             * the story.
+             */
+
+            if (isLastVideo) {
+                finishStudy();
+                return;
+            }
+
+            /*
+             * After videos 1–8, wait for a click.
+             */
+
+            clickStartTime =
+                performance.now();
+
+            clickScreen.style.display =
+                "block";
+
+            console.log(
+                "Waiting for click after video:",
+                currentVideo + 1
+            );
+        }
+
+        videoA.addEventListener(
+            "ended",
+            handleVideoEnded
+        );
+
+        videoB.addEventListener(
+            "ended",
+            handleVideoEnded
+        );
+
+        /* Click anywhere to continue */
+
+        clickScreen.addEventListener(
+            "click",
+            function (event) {
+                const reactionTime =
+                    performance.now()
+                    -
+                    clickStartTime;
+
+                const gameRect =
+                    game.getBoundingClientRect();
+
+                const clickX =
+                    event.clientX
+                    -
+                    gameRect.left;
+
+                const clickY =
+                    event.clientY
+                    -
+                    gameRect.top;
+
+                clickData.push({
+                    interaction:
+                        currentVideo + 1,
+
+                    video:
+                        videos[currentVideo],
+
+                    reactionTime:
+                        Math.round(
+                            reactionTime
+                        ),
+
+                    clickX:
+                        Math.round(clickX),
+
+                    clickY:
+                        Math.round(clickY)
+                });
+
+                console.log(
+                    "Interaction:",
+                    currentVideo + 1,
+                    "Reaction time:",
+                    Math.round(reactionTime),
+                    "ms"
+                );
+
+                clickScreen.style.display =
+                    "none";
+
+                currentVideo++;
+
+                playPreloadedVideo();
+            }
+        );
+
+        /* Display playback errors */
+
+        function showPlaybackError(error) {
+            console.error(
+                "Video playback error:",
+                error
+            );
+
+            alert(
+                "Could not play this video:\n"
+                +
+                videos[currentVideo]
+            );
+        }
+
+        /* Automatically finish after video 9 */
+
+        function finishStudy() {
+            videoA.pause();
+            videoB.pause();
+
+            videoA.style.opacity = "0";
+            videoB.style.opacity = "0";
+
+            introScreen.style.display = "none";
+            clickScreen.style.display = "none";
+            finishScreen.style.display = "flex";
+
+            console.log(
+                "STUDY C3 COMPLETE"
+            );
+
+            console.log(
+                "FINAL INTERACTION DATA:"
+            );
+
+            console.table(clickData);
+        }
+    </script>
+</body>
+</html>
