@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Xavier New Year Study</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+        }
+
+        body {
+            margin: 0;
+
+            display: flex;
+            justify-content: center;
+            align-items: center;
+
+            background: #111;
+            font-family: Arial, sans-serif;
+        }
+
+        #game {
+            position: relative;
+
+            width: 430px;
+            height: 760px;
+
+            max-width: 100vw;
+            max-height: 100vh;
+
+            overflow: hidden;
+            background: black;
+        }
+
+        /* Two video layers reduce black flashes */
+
+        .storyVideo {
+            position: absolute;
+            inset: 0;
+
+            width: 100%;
+            height: 100%;
+
+            object-fit: contain;
+            background: black;
+
+            opacity: 0;
+            z-index: 1;
+
+            transition: opacity 0.2s ease;
+        }
+
+        .storyVideo.visible {
+            opacity: 1;
+            z-index: 2;
+        }
+
+        /* Begin screen */
+
+        #startScreen {
+            position: absolute;
+            inset: 0;
+
+            display: flex;
+            justify-content: center;
+            align-items: center;
+
+            background: black;
+            z-index: 30;
+        }
+
+        #startButton {
+            padding: 15px 35px;
+
+            border: none;
+            border-radius: 30px;
+
+            background: white;
+            color: black;
+
+            font-size: 18px;
+            cursor: pointer;
+        }
+
+        #startButton:hover {
+            background: #e8e8e8;
+        }
+
+        /* Opening text */
+
+        #introScreen {
+            position: absolute;
+            inset: 0;
+
+            display: none;
+            justify-content: center;
+            align-items: center;
+
+            padding: 40px;
+
+            background: black;
+            color: white;
+
+            text-align: center;
+            z-index: 25;
+
+            opacity: 1;
+            transition: opacity 0.6s ease;
+        }
+
+        #introScreen.show {
+            display: flex;
+        }
+
+        #introScreen.fadeOut {
+            opacity: 0;
+        }
+
+        #introText {
+            max-width: 350px;
+            margin: 0;
+
+            font-size: 20px;
+            line-height: 1.6;
+            font-weight: 400;
+
+            opacity: 0;
+            transform: translateY(12px);
+        }
+
+        #introScreen.show #introText {
+            animation:
+                introFadeIn 1.5s ease-out 0.2s forwards;
+        }
+
+        @keyframes introFadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(12px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Invisible click area */
+
+        #clickScreen {
+            position: absolute;
+            inset: 0;
+
+            display: none;
+
+            background: transparent;
+            cursor: pointer;
+
+            z-index: 20;
+        }
+
+        /* Ending screen */
+
+        #finishScreen {
+            position: absolute;
+            inset: 0;
+
+            display: none;
+            justify-content: center;
+            align-items: center;
+
+            background: black;
+            color: white;
+
+            font-size: 20px;
+            z-index: 40;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="game">
+
+        <!-- Two players for smooth switching -->
+
+        <video
+            id="videoA"
+            class="storyVideo"
+            playsinline
+            preload="auto"
+        ></video>
+
+        <video
+            id="videoB"
+            class="storyVideo"
+            playsinline
+            preload="auto"
+        ></video>
+
+        <!-- Click anywhere after each scene -->
+
+        <div id="clickScreen"></div>
+
+        <!-- Begin -->
+
+        <div id="startScreen">
+            <button id="startButton">
+                Begin
+            </button>
+        </div>
+
+        <!-- Five-second opening -->
+
+        <div id="introScreen">
+            <p id="introText">
+                It’s New Year’s. You and Xavier are planning
+                to make lanterns together.
+            </p>
+        </div>
+
+        <!-- Ending -->
+
+        <div id="finishScreen">
+            Story Complete
+        </div>
+
+    </div>
+
+    <script>
+        /* ==========================================
+           VIDEO LIST
+        ========================================== */
+
+        const videos = [
+            "../assets/xavier-low-intimacy/xavier low 1.mp4",
+            "../assets/xavier-low-intimacy/xavier low 2.mp4",
+            "../assets/xavier-low-intimacy/xavier low 3.mp4",
+            "../assets/xavier-low-intimacy/xavier low 4.mp4",
+            "../assets/xavier-low-intimacy/xavier low 5.mp4",
+            "../assets/xavier-low-intimacy/xavier low 6.mp4"
+        ];
+
+        /* ==========================================
+           VARIABLES
+        ========================================== */
+
+        let currentVideoIndex = 0;
+
+        let activeVideo;
+        let inactiveVideo;
+
+        let clickStartTime = 0;
+        let clickData = [];
+
+        let switchingVideo = false;
+
+        /* ==========================================
+           ELEMENTS
+        ========================================== */
+
+        const videoA =
+            document.getElementById("videoA");
+
+        const videoB =
+            document.getElementById("videoB");
+
+        const clickScreen =
+            document.getElementById("clickScreen");
+
+        const startScreen =
+            document.getElementById("startScreen");
+
+        const startButton =
+            document.getElementById("startButton");
+
+        const introScreen =
+            document.getElementById("introScreen");
+
+        const finishScreen =
+            document.getElementById("finishScreen");
+
+        const game =
+            document.getElementById("game");
+
+        /* ==========================================
+           INITIAL PRELOAD
+        ========================================== */
+
+        activeVideo = videoA;
+        inactiveVideo = videoB;
+
+        setVideoSource(
+            activeVideo,
+            videos[0]
+        );
+
+        if (videos.length > 1) {
+            setVideoSource(
+                inactiveVideo,
+                videos[1]
+            );
+        }
+
+        function setVideoSource(videoElement, source) {
+            if (videoElement.dataset.source === source) {
+                return;
+            }
+
+            videoElement.dataset.source = source;
+            videoElement.src = source;
+            videoElement.load();
+        }
+
+        /* ==========================================
+           BEGIN
+        ========================================== */
+
+        startButton.addEventListener(
+            "click",
+            function () {
+                startButton.disabled = true;
+
+                startScreen.style.display = "none";
+
+                introScreen.classList.add("show");
+
+                /*
+                Fade the introduction out shortly
+                before the five seconds end.
+                */
+
+                setTimeout(function () {
+                    introScreen.classList.add("fadeOut");
+                }, 4400);
+
+                /*
+                Begin video 1 automatically.
+                */
+
+                setTimeout(function () {
+                    introScreen.style.display = "none";
+
+                    playFirstVideo();
+                }, 5000);
+            }
+        );
+
+        /* ==========================================
+           PLAY FIRST VIDEO
+        ========================================== */
+
+        function playFirstVideo() {
+            currentVideoIndex = 0;
+
+            activeVideo.currentTime = 0;
+            activeVideo.classList.add("visible");
+
+            const playPromise =
+                activeVideo.play();
+
+            if (playPromise !== undefined) {
+                playPromise.catch(function (error) {
+                    console.error(error);
+
+                    alert(
+                        "Could not play video:\n" +
+                        videos[currentVideoIndex]
+                    );
+                });
+            }
+        }
+
+        /* ==========================================
+           VIDEO FINISHED
+        ========================================== */
+
+        videoA.addEventListener(
+            "ended",
+            handleVideoEnded
+        );
+
+        videoB.addEventListener(
+            "ended",
+            handleVideoEnded
+        );
+
+        function handleVideoEnded(event) {
+            if (event.target !== activeVideo) {
+                return;
+            }
+
+            /*
+            Video 6 ends the study automatically.
+            */
+
+            if (
+                currentVideoIndex ===
+                videos.length - 1
+            ) {
+                finishStudy();
+                return;
+            }
+
+            clickScreen.style.display = "block";
+
+            clickStartTime =
+                performance.now();
+
+            console.log(
+                "Waiting for click after video",
+                currentVideoIndex + 1
+            );
+        }
+
+        /* ==========================================
+           CLICK ANYWHERE
+        ========================================== */
+
+        clickScreen.addEventListener(
+            "click",
+            function (event) {
+                if (switchingVideo) {
+                    return;
+                }
+
+                switchingVideo = true;
+
+                const reactionTime =
+                    performance.now() -
+                    clickStartTime;
+
+                const gameRect =
+                    game.getBoundingClientRect();
+
+                clickData.push({
+                    interaction:
+                        currentVideoIndex + 1,
+
+                    reactionTime:
+                        Math.round(reactionTime),
+
+                    clickX:
+                        Math.round(
+                            event.clientX -
+                            gameRect.left
+                        ),
+
+                    clickY:
+                        Math.round(
+                            event.clientY -
+                            gameRect.top
+                        )
+                });
+
+                console.log(
+                    "Interaction",
+                    currentVideoIndex + 1,
+                    "RT:",
+                    Math.round(reactionTime),
+                    "ms"
+                );
+
+                clickScreen.style.display = "none";
+
+                currentVideoIndex++;
+
+                switchToNextVideo();
+            }
+        );
+
+        /* ==========================================
+           SMOOTH VIDEO SWITCH
+        ========================================== */
+
+        function switchToNextVideo() {
+            const outgoingVideo =
+                activeVideo;
+
+            const incomingVideo =
+                inactiveVideo;
+
+            setVideoSource(
+                incomingVideo,
+                videos[currentVideoIndex]
+            );
+
+            incomingVideo.currentTime = 0;
+
+            const showIncomingVideo =
+                function () {
+                    /*
+                    Keep the previous final frame visible
+                    until the next video starts.
+                    */
+
+                    incomingVideo.classList.add(
+                        "visible"
+                    );
+
+                    outgoingVideo.classList.remove(
+                        "visible"
+                    );
+
+                    activeVideo =
+                        incomingVideo;
+
+                    inactiveVideo =
+                        outgoingVideo;
+
+                    switchingVideo = false;
+
+                    setTimeout(function () {
+                        preloadFollowingVideo();
+                    }, 250);
+                };
+
+            incomingVideo.addEventListener(
+                "playing",
+                showIncomingVideo,
+                { once: true }
+            );
+
+            const playPromise =
+                incomingVideo.play();
+
+            if (playPromise !== undefined) {
+                playPromise.catch(function (error) {
+                    switchingVideo = false;
+
+                    console.error(error);
+
+                    alert(
+                        "Could not play video:\n" +
+                        videos[currentVideoIndex]
+                    );
+                });
+            }
+        }
+
+        /* ==========================================
+           PRELOAD FOLLOWING VIDEO
+        ========================================== */
+
+        function preloadFollowingVideo() {
+            const followingIndex =
+                currentVideoIndex + 1;
+
+            if (followingIndex < videos.length) {
+                setVideoSource(
+                    inactiveVideo,
+                    videos[followingIndex]
+                );
+            }
+        }
+
+        /* ==========================================
+           FINISH
+        ========================================== */
+
+        function finishStudy() {
+            clickScreen.style.display = "none";
+
+            videoA.pause();
+            videoB.pause();
+
+            videoA.classList.remove("visible");
+            videoB.classList.remove("visible");
+
+            finishScreen.style.display = "flex";
+
+            console.log(
+                "FINAL INTERACTION DATA:"
+            );
+
+            console.table(clickData);
+        }
+    </script>
+
+</body>
+
+</html>
