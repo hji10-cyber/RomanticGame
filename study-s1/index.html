@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
 
@@ -8,16 +9,21 @@
         content="width=device-width, initial-scale=1.0"
     >
 
-    <title>Study C3</title>
+    <title>Study S1</title>
 
     <style>
         * {
             box-sizing: border-box;
         }
 
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+        }
+
         body {
             margin: 0;
-            min-height: 100vh;
 
             display: flex;
             justify-content: center;
@@ -40,10 +46,7 @@
             background: black;
         }
 
-        /*
-         * Two video players alternate.
-         * One plays while the other preloads.
-         */
+        /* Two alternating video players */
 
         .storyVideo {
             position: absolute;
@@ -66,9 +69,9 @@
             z-index: 2;
         }
 
-        /* Begin screen */
+        /* Opening screen */
 
-        #startScreen {
+        #introScreen {
             position: absolute;
             inset: 0;
 
@@ -76,55 +79,47 @@
             justify-content: center;
             align-items: center;
 
-            background: black;
-
-            z-index: 30;
-        }
-
-        #startButton {
-            padding: 15px 35px;
-
-            border: none;
-            border-radius: 30px;
-
-            background: white;
-            color: black;
-
-            font-size: 18px;
-            cursor: pointer;
-        }
-
-        #startButton:hover {
-            background: #e8e8e8;
-        }
-
-        /* Five-second introduction */
-
-        #introScreen {
-            position: absolute;
-            inset: 0;
-
-            display: none;
-            justify-content: center;
-            align-items: center;
-
-            padding: 40px;
+            padding: 36px;
 
             background: black;
             color: white;
 
-            text-align: center;
-            font-size: 20px;
-            line-height: 1.6;
+            z-index: 30;
 
-            z-index: 25;
+            opacity: 1;
+            transition: opacity 0.4s ease;
         }
 
-        #introScreen p {
-            max-width: 350px;
+        #introScreen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        #introContent {
+            width: 100%;
+            max-width: 620px;
+
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+
+            gap: 30px;
+        }
+
+        #introText {
+            width: 100%;
             margin: 0;
 
+            color: white;
+
+            font-size: clamp(19px, 2.2vw, 26px);
+            line-height: 1.5;
+            font-weight: 400;
+
+            text-align: left;
+
             opacity: 0;
+            transform: translateY(12px);
 
             animation:
                 introFadeIn 1.5s ease-out 0.2s forwards;
@@ -142,10 +137,49 @@
             }
         }
 
-        /*
-         * Transparent click area.
-         * Enabled after the first seven videos.
-         */
+        /* Begin button */
+
+        #beginButton {
+            padding: 14px 38px;
+
+            border: none;
+            border-radius: 30px;
+
+            background: white;
+            color: black;
+
+            font-size: 18px;
+            font-family: inherit;
+
+            cursor: pointer;
+
+            opacity: 0;
+            transform: translateY(8px);
+
+            pointer-events: none;
+
+            transition:
+                opacity 0.6s ease,
+                transform 0.6s ease,
+                background 0.2s ease;
+        }
+
+        #beginButton.visible {
+            opacity: 1;
+            transform: translateY(0);
+
+            pointer-events: auto;
+        }
+
+        #beginButton:hover {
+            background: #e8e8e8;
+        }
+
+        #beginButton:disabled {
+            cursor: default;
+        }
+
+        /* Invisible interaction area */
 
         #clickScreen {
             position: absolute;
@@ -156,82 +190,80 @@
             background: transparent;
             cursor: pointer;
 
-            z-index: 15;
+            z-index: 20;
         }
 
-        /* Completion screen */
+        /* Black screen shown briefly while Qualtrics advances */
 
-        #finishScreen {
+        #endingScreen {
             position: absolute;
             inset: 0;
 
             display: none;
-            justify-content: center;
-            align-items: center;
 
             background: black;
-            color: white;
-
-            font-size: 20px;
-            text-align: center;
-
             z-index: 40;
         }
     </style>
 </head>
 
 <body>
-    <div id="game">
 
-        <!-- Two alternating video players -->
+    <div id="game">
 
         <video
             id="videoA"
             class="storyVideo"
             playsinline
-            preload="auto">
-        </video>
+            preload="auto"
+        ></video>
 
         <video
             id="videoB"
             class="storyVideo"
             playsinline
-            preload="auto">
-        </video>
+            preload="auto"
+        ></video>
 
-        <!-- Click anywhere to continue -->
+        <!-- Click anywhere after each video -->
 
         <div id="clickScreen"></div>
 
-        <!-- Introduction -->
+        <!-- Opening appears immediately -->
 
         <div id="introScreen">
-            <p>
-                You planned a midnight birthday surprise for Sylus, your romantic partner. When part of your gift was stolen, Sylus recovered it. Now he has returned to meet you just before midnight.
-            </p>
+
+            <div id="introContent">
+
+                <p id="introText">
+                    It’s Sylus’s birthday. You planned a midnight
+                    surprise for Sylus, your romantic partner, but
+                    part of the gift was stolen. After recovering it,
+                    Sylus returns to meet you just before midnight.
+                </p>
+
+                <button
+                    id="beginButton"
+                    type="button"
+                    disabled
+                >
+                    Begin
+                </button>
+
+            </div>
+
         </div>
 
-        <!-- Start screen -->
+        <!-- No completion message -->
 
-        <div id="startScreen">
-            <button id="startButton" type="button">
-                Begin
-            </button>
-        </div>
-
-        <!-- Completion screen -->
-
-        <div id="finishScreen">
-            Story Complete
-        </div>
+        <div id="endingScreen"></div>
 
     </div>
 
     <script>
-        /*
-         * Sylus video list.
-         * Only videos 2–9 are used.
-         */
+        /* ==========================================
+           VIDEO LIST: SYLUS HIGH 1–9
+        ========================================== */
 
         const videos = [
             "../assets/sylus-high-intimacy/sylus high 1.mp4",
@@ -247,10 +279,13 @@
 
         let currentVideo = 0;
         let clickStartTime = 0;
+        let studyFinished = false;
 
         const clickData = [];
 
-        /* Page elements */
+        /* ==========================================
+           PAGE ELEMENTS
+        ========================================== */
 
         const game =
             document.getElementById("game");
@@ -267,24 +302,38 @@
         const introScreen =
             document.getElementById("introScreen");
 
-        const startScreen =
-            document.getElementById("startScreen");
+        const beginButton =
+            document.getElementById("beginButton");
 
-        const startButton =
-            document.getElementById("startButton");
-
-        const finishScreen =
-            document.getElementById("finishScreen");
-
-        /*
-         * activeVideo is visible.
-         * standbyVideo preloads the next video.
-         */
+        const endingScreen =
+            document.getElementById("endingScreen");
 
         let activeVideo = videoA;
         let standbyVideo = videoB;
 
-        /* Preload a video */
+        /* ==========================================
+           INITIAL PRELOAD
+        ========================================== */
+
+        preloadVideo(activeVideo, 0);
+        preloadVideo(standbyVideo, 1);
+
+        activeVideo.style.opacity = "1";
+        activeVideo.style.zIndex = "2";
+
+        /*
+        Show Begin after three seconds.
+        Participants may take longer if needed.
+        */
+
+        setTimeout(function () {
+            beginButton.disabled = false;
+            beginButton.classList.add("visible");
+        }, 3000);
+
+        /* ==========================================
+           PRELOAD VIDEO
+        ========================================== */
 
         function preloadVideo(
             videoElement,
@@ -306,10 +355,9 @@
             videoElement.load();
         }
 
-        /*
-         * Wait until a real video frame has been
-         * decoded and rendered.
-         */
+        /* ==========================================
+           WAIT FOR A REAL VIDEO FRAME
+        ========================================== */
 
         function afterVideoFrame(
             videoElement,
@@ -340,71 +388,56 @@
             }
         }
 
-        /*
-         * Begin:
-         *
-         * 1. Show the introduction for five seconds.
-         * 2. Load Sylus video 2.
-         * 3. Preload Sylus video 3.
-         */
+        /* ==========================================
+           BEGIN
+        ========================================== */
 
-        startButton.addEventListener(
+        beginButton.addEventListener(
             "click",
             function () {
-                startScreen.style.display = "none";
-                finishScreen.style.display = "none";
-                introScreen.style.display = "flex";
+                if (beginButton.disabled) {
+                    return;
+                }
+
+                beginButton.disabled = true;
 
                 currentVideo = 0;
                 clickData.length = 0;
 
-                activeVideo = videoA;
-                standbyVideo = videoB;
-
-                preloadVideo(activeVideo, 0);
-                preloadVideo(standbyVideo, 1);
-
-                activeVideo.style.opacity = "1";
-                activeVideo.style.zIndex = "2";
-
-                /*
-                 * 5000 milliseconds = 5 seconds.
-                 */
-
-                setTimeout(
-                    function () {
-                        playFirstVideo();
-                    },
-                    5000
-                );
+                playFirstVideo();
             }
         );
 
-        /*
-         * Play the first video in the list:
-         * sylus high 2.mp4
-         */
+        /* ==========================================
+           PLAY FIRST VIDEO
+        ========================================== */
 
         function playFirstVideo() {
             activeVideo.currentTime = 0;
 
             /*
-             * Keep the introduction visible until
-             * the first frame is rendered.
-             */
+            Keep the introduction visible until
+            the first real video frame is ready.
+            */
 
             afterVideoFrame(
                 activeVideo,
                 function () {
-                    introScreen.style.display =
-                        "none";
+                    activeVideo.style.opacity = "1";
+                    activeVideo.style.zIndex = "2";
+
+                    introScreen.classList.add("hidden");
+
+                    setTimeout(function () {
+                        introScreen.style.display = "none";
+                    }, 400);
                 }
             );
 
             activeVideo.play()
                 .then(function () {
                     console.log(
-                        "Playing video:",
+                        "Playing:",
                         videos[currentVideo]
                     );
                 })
@@ -413,12 +446,9 @@
                 });
         }
 
-        /*
-         * Play the preloaded next video.
-         *
-         * The previous final frame remains visible
-         * until the new first frame is rendered.
-         */
+        /* ==========================================
+           PLAY NEXT PRELOADED VIDEO
+        ========================================== */
 
         function playPreloadedVideo() {
             const outgoingVideo =
@@ -439,22 +469,15 @@
                 hasSwitched = true;
 
                 /*
-                 * Show the ready incoming video.
-                 */
+                Show the new video only after its
+                first frame has rendered.
+                */
 
                 incomingVideo.style.zIndex = "3";
                 incomingVideo.style.opacity = "1";
 
-                /*
-                 * Hide the previous final frame.
-                 */
-
                 outgoingVideo.style.opacity = "0";
                 outgoingVideo.style.zIndex = "1";
-
-                /*
-                 * Exchange player roles.
-                 */
 
                 activeVideo = incomingVideo;
                 standbyVideo = outgoingVideo;
@@ -463,8 +486,8 @@
                 activeVideo.style.zIndex = "2";
 
                 /*
-                 * Preload the following video.
-                 */
+                Preload the following video.
+                */
 
                 preloadVideo(
                     standbyVideo,
@@ -480,7 +503,7 @@
             incomingVideo.play()
                 .then(function () {
                     console.log(
-                        "Playing video:",
+                        "Playing:",
                         videos[currentVideo]
                     );
                 })
@@ -489,7 +512,9 @@
                 });
         }
 
-        /* Handle the end of both video players */
+        /* ==========================================
+           VIDEO ENDED
+        ========================================== */
 
         function handleVideoEnded(event) {
             if (
@@ -503,24 +528,19 @@
                 videos.length - 1;
 
             /*
-             * Sylus video 9 automatically
-             * completes the story.
-             */
+            Video 9 automatically completes
+            the stimulus and advances Qualtrics.
+            */
 
             if (isLastVideo) {
                 finishStudy();
                 return;
             }
 
-            /*
-             * After videos 2–8, wait for a click.
-             */
-
             clickStartTime =
                 performance.now();
 
-            clickScreen.style.display =
-                "block";
+            clickScreen.style.display = "block";
 
             console.log(
                 "Waiting for click after:",
@@ -538,28 +558,19 @@
             handleVideoEnded
         );
 
-        /* Click anywhere to continue */
+        /* ==========================================
+           CLICK ANYWHERE TO CONTINUE
+        ========================================== */
 
         clickScreen.addEventListener(
             "click",
             function (event) {
                 const reactionTime =
-                    performance.now()
-                    -
+                    performance.now() -
                     clickStartTime;
 
                 const gameRect =
                     game.getBoundingClientRect();
-
-                const clickX =
-                    event.clientX
-                    -
-                    gameRect.left;
-
-                const clickY =
-                    event.clientY
-                    -
-                    gameRect.top;
 
                 clickData.push({
                     interaction:
@@ -569,27 +580,22 @@
                         videos[currentVideo],
 
                     reactionTime:
-                        Math.round(
-                            reactionTime
-                        ),
+                        Math.round(reactionTime),
 
                     clickX:
-                        Math.round(clickX),
+                        Math.round(
+                            event.clientX -
+                            gameRect.left
+                        ),
 
                     clickY:
-                        Math.round(clickY)
+                        Math.round(
+                            event.clientY -
+                            gameRect.top
+                        )
                 });
 
-                console.log(
-                    "Interaction:",
-                    currentVideo + 1,
-                    "Reaction time:",
-                    Math.round(reactionTime),
-                    "ms"
-                );
-
-                clickScreen.style.display =
-                    "none";
+                clickScreen.style.display = "none";
 
                 currentVideo++;
 
@@ -597,7 +603,9 @@
             }
         );
 
-        /* Display playback errors */
+        /* ==========================================
+           PLAYBACK ERROR
+        ========================================== */
 
         function showPlaybackError(error) {
             console.error(
@@ -606,35 +614,55 @@
             );
 
             alert(
-                "Could not play this video:\n"
-                +
+                "Could not play this video:\n" +
                 videos[currentVideo]
             );
         }
 
-        /* Automatically finish after video 9 */
+        /* ==========================================
+           FINISH AND NOTIFY QUALTRICS
+        ========================================== */
 
         function finishStudy() {
+            if (studyFinished) {
+                return;
+            }
+
+            studyFinished = true;
+
             videoA.pause();
             videoB.pause();
 
             videoA.style.opacity = "0";
             videoB.style.opacity = "0";
 
-            introScreen.style.display = "none";
             clickScreen.style.display = "none";
-            finishScreen.style.display = "flex";
+            introScreen.style.display = "none";
+            endingScreen.style.display = "block";
 
             console.log(
-                "STUDY C3 COMPLETE"
-            );
-
-            console.log(
-                "FINAL INTERACTION DATA:"
+                "STUDY S1 COMPLETE"
             );
 
             console.table(clickData);
+
+            /*
+            Tell the surrounding Qualtrics page
+            that the stimulus has finished.
+            */
+
+            if (window.parent !== window) {
+                window.parent.postMessage(
+                    {
+                        type: "otome-study-complete",
+                        study: "study-s1"
+                    },
+                    "*"
+                );
+            }
         }
     </script>
+
 </body>
+
 </html>
