@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
 
@@ -8,16 +9,21 @@
         content="width=device-width, initial-scale=1.0"
     >
 
-    <title>Caleb Birthday Study</title>
+    <title>Study C1</title>
 
     <style>
         * {
             box-sizing: border-box;
         }
 
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+        }
+
         body {
             margin: 0;
-            min-height: 100vh;
 
             display: flex;
             justify-content: center;
@@ -40,11 +46,7 @@
             background: black;
         }
 
-        /*
-         * Two video elements are used.
-         * One displays the current video while
-         * the other preloads the next video.
-         */
+        /* Two video layers reduce black flashes */
 
         .storyVideo {
             position: absolute;
@@ -59,11 +61,6 @@
             opacity: 0;
             z-index: 1;
 
-            /*
-             * No opacity transition prevents a
-             * temporary black compositing frame.
-             */
-
             transition: none;
         }
 
@@ -72,9 +69,9 @@
             z-index: 2;
         }
 
-        /* Begin screen */
+        /* Opening screen */
 
-        #startScreen {
+        #introScreen {
             position: absolute;
             inset: 0;
 
@@ -82,55 +79,47 @@
             justify-content: center;
             align-items: center;
 
-            background: black;
-
-            z-index: 30;
-        }
-
-        #startButton {
-            padding: 15px 35px;
-
-            border: none;
-            border-radius: 30px;
-
-            background: white;
-            color: black;
-
-            font-size: 18px;
-            cursor: pointer;
-        }
-
-        #startButton:hover {
-            background: #e8e8e8;
-        }
-
-        /* Five-second introduction */
-
-        #introScreen {
-            position: absolute;
-            inset: 0;
-
-            display: none;
-            justify-content: center;
-            align-items: center;
-
-            padding: 40px;
+            padding: 36px;
 
             background: black;
             color: white;
 
-            text-align: center;
-            font-size: 20px;
-            line-height: 1.6;
+            z-index: 30;
 
-            z-index: 25;
+            opacity: 1;
+            transition: opacity 0.4s ease;
         }
 
-        #introScreen p {
-            max-width: 350px;
+        #introScreen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        #introContent {
+            width: 100%;
+            max-width: 620px;
+
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+
+            gap: 30px;
+        }
+
+        #introText {
+            width: 100%;
             margin: 0;
 
+            color: white;
+
+            font-size: clamp(19px, 2.2vw, 26px);
+            line-height: 1.5;
+            font-weight: 400;
+
+            text-align: left;
+
             opacity: 0;
+            transform: translateY(12px);
 
             animation:
                 introFadeIn 1.5s ease-out 0.2s forwards;
@@ -148,10 +137,49 @@
             }
         }
 
-        /*
-         * Transparent click area.
-         * Enabled after videos 1–7 finish.
-         */
+        /* Begin button */
+
+        #beginButton {
+            padding: 14px 38px;
+
+            border: none;
+            border-radius: 30px;
+
+            background: white;
+            color: black;
+
+            font-family: inherit;
+            font-size: 18px;
+
+            cursor: pointer;
+
+            opacity: 0;
+            transform: translateY(8px);
+
+            pointer-events: none;
+
+            transition:
+                opacity 0.6s ease,
+                transform 0.6s ease,
+                background 0.2s ease;
+        }
+
+        #beginButton.visible {
+            opacity: 1;
+            transform: translateY(0);
+
+            pointer-events: auto;
+        }
+
+        #beginButton:hover {
+            background: #e8e8e8;
+        }
+
+        #beginButton:disabled {
+            cursor: default;
+        }
+
+        /* Invisible interaction area */
 
         #clickScreen {
             position: absolute;
@@ -162,100 +190,103 @@
             background: transparent;
             cursor: pointer;
 
-            z-index: 15;
+            z-index: 20;
         }
 
-        /* Completion screen */
+        /* Black screen while Qualtrics advances */
 
-        #finishScreen {
+        #endingScreen {
             position: absolute;
             inset: 0;
 
             display: none;
-            justify-content: center;
-            align-items: center;
 
             background: black;
-            color: white;
-
-            font-size: 20px;
-            text-align: center;
-
             z-index: 40;
         }
     </style>
 </head>
 
 <body>
-    <div id="game">
 
-        <!-- Two alternating video players -->
+    <div id="game">
 
         <video
             id="videoA"
             class="storyVideo"
             playsinline
-            preload="auto">
-        </video>
+            preload="auto"
+        ></video>
 
         <video
             id="videoB"
             class="storyVideo"
             playsinline
-            preload="auto">
-        </video>
+            preload="auto"
+        ></video>
 
-        <!-- Click anywhere to continue -->
+        <!-- Click anywhere after each scene -->
 
         <div id="clickScreen"></div>
 
-        <!-- Five-second introduction -->
+        <!-- Opening appears immediately -->
 
         <div id="introScreen">
-            <p>
-                It’s Caleb’s birthday. After watching a movie
-                together, you have prepared a small gift for him.
-            </p>
+
+            <div id="introContent">
+
+                <p id="introText">
+                    It’s Caleb’s birthday. After celebrating with
+                    Caleb, your romantic partner, the two of you
+                    finish watching a movie together. Before leaving
+                    for the night, you give him one final birthday
+                    gift.
+                </p>
+
+                <button
+                    id="beginButton"
+                    type="button"
+                    disabled
+                >
+                    Begin
+                </button>
+
+            </div>
+
         </div>
 
-        <!-- Start screen -->
+        <!-- No completion message -->
 
-        <div id="startScreen">
-            <button id="startButton" type="button">
-                Begin
-            </button>
-        </div>
-
-        <!-- Completion screen -->
-
-        <div id="finishScreen">
-            Story Complete
-        </div>
+        <div id="endingScreen"></div>
 
     </div>
 
     <script>
-        /*
-         * Birthday video list.
-         */
+        /* ==========================================
+           VIDEO LIST: CALEB HIGH 1–8
+        ========================================== */
 
         const videos = [
-            "assets/Caleb Birthday 1.mp4",
-            "assets/Caleb Birthday 2.mp4",
-            "assets/Caleb Birthday 3.mp4",
-            "assets/Caleb Birthday 4.mp4",
-            "assets/Caleb Birthday 5.mp4",
-            "assets/Caleb Birthday 6.mp4",
-            "assets/Caleb Birthday 7.mp4",
-            "assets/Caleb Birthday 8.mp4"
+            "../assets/Caleb Birthday 1.mp4",
+            "../assets/Caleb Birthday 2.mp4",
+            "../assets/Caleb Birthday 3.mp4",
+            "../assets/Caleb Birthday 4.mp4",
+            "../assets/Caleb Birthday 5.mp4",
+            "../assets/Caleb Birthday 6.mp4",
+            "../assets/Caleb Birthday 7.mp4",
+            "../assets/Caleb Birthday 8.mp4"
         ];
 
         let currentVideo = 0;
         let clickStartTime = 0;
+        let studyFinished = false;
+        let switchingVideo = false;
 
         const clickData = [];
 
-        /* Page elements */
+        /* ==========================================
+           PAGE ELEMENTS
+        ========================================== */
 
         const game =
             document.getElementById("game");
@@ -272,24 +303,38 @@
         const introScreen =
             document.getElementById("introScreen");
 
-        const startScreen =
-            document.getElementById("startScreen");
+        const beginButton =
+            document.getElementById("beginButton");
 
-        const startButton =
-            document.getElementById("startButton");
-
-        const finishScreen =
-            document.getElementById("finishScreen");
-
-        /*
-         * activeVideo is visible.
-         * standbyVideo preloads the next scene.
-         */
+        const endingScreen =
+            document.getElementById("endingScreen");
 
         let activeVideo = videoA;
         let standbyVideo = videoB;
 
-        /* Load a video into one of the players */
+        /* ==========================================
+           INITIAL PRELOAD
+        ========================================== */
+
+        preloadVideo(activeVideo, 0);
+        preloadVideo(standbyVideo, 1);
+
+        activeVideo.style.opacity = "1";
+        activeVideo.style.zIndex = "2";
+
+        /*
+        Show Begin after three seconds.
+        Participants can read for longer if needed.
+        */
+
+        setTimeout(function () {
+            beginButton.disabled = false;
+            beginButton.classList.add("visible");
+        }, 3000);
+
+        /* ==========================================
+           PRELOAD VIDEO
+        ========================================== */
 
         function preloadVideo(
             videoElement,
@@ -311,10 +356,9 @@
             videoElement.load();
         }
 
-        /*
-         * Run a function after a real video frame
-         * has been decoded and rendered.
-         */
+        /* ==========================================
+           WAIT FOR A REAL VIDEO FRAME
+        ========================================== */
 
         function afterVideoFrame(
             videoElement,
@@ -329,10 +373,6 @@
                     callback
                 );
             } else {
-                /*
-                 * Fallback for older browsers.
-                 */
-
                 videoElement.addEventListener(
                     "playing",
                     function () {
@@ -349,75 +389,56 @@
             }
         }
 
-        /*
-         * Begin:
-         *
-         * 1. Display the introduction.
-         * 2. Load video 1.
-         * 3. Preload video 2.
-         * 4. Begin playback after five seconds.
-         */
+        /* ==========================================
+           BEGIN
+        ========================================== */
 
-        startButton.addEventListener(
+        beginButton.addEventListener(
             "click",
             function () {
-                startScreen.style.display = "none";
-                finishScreen.style.display = "none";
-                introScreen.style.display = "flex";
+                if (beginButton.disabled) {
+                    return;
+                }
+
+                beginButton.disabled = true;
 
                 currentVideo = 0;
                 clickData.length = 0;
 
-                activeVideo = videoA;
-                standbyVideo = videoB;
-
-                preloadVideo(activeVideo, 0);
-                preloadVideo(standbyVideo, 1);
-
-                /*
-                 * The introduction covers the video,
-                 * but the first player remains ready.
-                 */
-
-                activeVideo.style.opacity = "1";
-                activeVideo.style.zIndex = "2";
-
-                /*
-                 * 5000 milliseconds = 5 seconds.
-                 */
-
-                setTimeout(
-                    function () {
-                        playFirstVideo();
-                    },
-                    5000
-                );
+                playFirstVideo();
             }
         );
 
-        /*
-         * Play video 1.
-         *
-         * Keep the introduction visible until the
-         * first video frame is actually rendered.
-         */
+        /* ==========================================
+           PLAY FIRST VIDEO
+        ========================================== */
 
         function playFirstVideo() {
             activeVideo.currentTime = 0;
 
+            /*
+            Keep the introduction visible until
+            the first video frame is ready.
+            */
+
             afterVideoFrame(
                 activeVideo,
                 function () {
-                    introScreen.style.display =
-                        "none";
+                    activeVideo.style.opacity = "1";
+                    activeVideo.style.zIndex = "2";
+
+                    introScreen.classList.add("hidden");
+
+                    setTimeout(function () {
+                        introScreen.style.display = "none";
+                    }, 400);
                 }
             );
 
             activeVideo.play()
                 .then(function () {
                     console.log(
-                        "Playing video:",
-                        currentVideo + 1,
+                        "Playing:",
                         videos[currentVideo]
                     );
                 })
@@ -426,13 +447,9 @@
                 });
         }
 
-        /*
-         * Play the preloaded next video.
-         *
-         * The outgoing video's last frame remains
-         * visible until the incoming video's first
-         * frame is actually rendered.
-         */
+        /* ==========================================
+           PLAY NEXT VIDEO
+        ========================================== */
 
         function playPreloadedVideo() {
             const outgoingVideo =
@@ -452,24 +469,11 @@
 
                 hasSwitched = true;
 
-                /*
-                 * First display the ready video.
-                 */
-
                 incomingVideo.style.zIndex = "3";
                 incomingVideo.style.opacity = "1";
 
-                /*
-                 * Now hide the previous video's
-                 * final frame.
-                 */
-
                 outgoingVideo.style.opacity = "0";
                 outgoingVideo.style.zIndex = "1";
-
-                /*
-                 * Exchange player roles.
-                 */
 
                 activeVideo = incomingVideo;
                 standbyVideo = outgoingVideo;
@@ -477,21 +481,13 @@
                 activeVideo.style.opacity = "1";
                 activeVideo.style.zIndex = "2";
 
-                /*
-                 * The hidden player can now preload
-                 * the following video.
-                 */
+                switchingVideo = false;
 
                 preloadVideo(
                     standbyVideo,
                     currentVideo + 1
                 );
             }
-
-            /*
-             * Wait for an actual decoded video frame
-             * before switching the visible player.
-             */
 
             afterVideoFrame(
                 incomingVideo,
@@ -501,24 +497,21 @@
             incomingVideo.play()
                 .then(function () {
                     console.log(
-                        "Playing video:",
-                        currentVideo + 1,
+                        "Playing:",
                         videos[currentVideo]
                     );
                 })
                 .catch(function (error) {
+                    switchingVideo = false;
                     showPlaybackError(error);
                 });
         }
 
-        /* Handle the end of both video players */
+        /* ==========================================
+           VIDEO ENDED
+        ========================================== */
 
         function handleVideoEnded(event) {
-            /*
-             * Ignore an ended event from a hidden
-             * or inactive video player.
-             */
-
             if (
                 event.currentTarget !== activeVideo
             ) {
@@ -530,28 +523,23 @@
                 videos.length - 1;
 
             /*
-             * Video 8 automatically finishes
-             * the study.
-             */
+            Video 8 automatically completes
+            the stimulus.
+            */
 
             if (isLastVideo) {
                 finishStudy();
                 return;
             }
 
-            /*
-             * After videos 1–7, wait for a click.
-             */
-
             clickStartTime =
                 performance.now();
 
-            clickScreen.style.display =
-                "block";
+            clickScreen.style.display = "block";
 
             console.log(
-                "Waiting for click after video:",
-                currentVideo + 1
+                "Waiting for click after:",
+                videos[currentVideo]
             );
         }
 
@@ -565,28 +553,25 @@
             handleVideoEnded
         );
 
-        /* Click anywhere to continue */
+        /* ==========================================
+           CLICK ANYWHERE TO CONTINUE
+        ========================================== */
 
         clickScreen.addEventListener(
             "click",
             function (event) {
+                if (switchingVideo) {
+                    return;
+                }
+
+                switchingVideo = true;
+
                 const reactionTime =
-                    performance.now()
-                    -
+                    performance.now() -
                     clickStartTime;
 
                 const gameRect =
                     game.getBoundingClientRect();
-
-                const clickX =
-                    event.clientX
-                    -
-                    gameRect.left;
-
-                const clickY =
-                    event.clientY
-                    -
-                    gameRect.top;
 
                 clickData.push({
                     interaction:
@@ -596,27 +581,22 @@
                         videos[currentVideo],
 
                     reactionTime:
-                        Math.round(
-                            reactionTime
-                        ),
+                        Math.round(reactionTime),
 
                     clickX:
-                        Math.round(clickX),
+                        Math.round(
+                            event.clientX -
+                            gameRect.left
+                        ),
 
                     clickY:
-                        Math.round(clickY)
+                        Math.round(
+                            event.clientY -
+                            gameRect.top
+                        )
                 });
 
-                console.log(
-                    "Interaction:",
-                    currentVideo + 1,
-                    "Reaction time:",
-                    Math.round(reactionTime),
-                    "ms"
-                );
-
-                clickScreen.style.display =
-                    "none";
+                clickScreen.style.display = "none";
 
                 currentVideo++;
 
@@ -624,7 +604,9 @@
             }
         );
 
-        /* Display playback errors */
+        /* ==========================================
+           PLAYBACK ERROR
+        ========================================== */
 
         function showPlaybackError(error) {
             console.error(
@@ -633,35 +615,55 @@
             );
 
             alert(
-                "Could not play this video:\n"
-                +
+                "Could not play this video:\n" +
                 videos[currentVideo]
             );
         }
 
-        /* Automatically finish after video 8 */
+        /* ==========================================
+           FINISH AND NOTIFY QUALTRICS
+        ========================================== */
 
         function finishStudy() {
+            if (studyFinished) {
+                return;
+            }
+
+            studyFinished = true;
+
             videoA.pause();
             videoB.pause();
 
             videoA.style.opacity = "0";
             videoB.style.opacity = "0";
 
-            introScreen.style.display = "none";
             clickScreen.style.display = "none";
-            finishScreen.style.display = "flex";
+            introScreen.style.display = "none";
+            endingScreen.style.display = "block";
 
             console.log(
-                "BIRTHDAY STUDY COMPLETE"
-            );
-
-            console.log(
-                "FINAL INTERACTION DATA:"
+                "STUDY C1 COMPLETE"
             );
 
             console.table(clickData);
+
+            /*
+            Notify Qualtrics that Caleb High
+            has finished.
+            */
+
+            if (window.parent !== window) {
+                window.parent.postMessage(
+                    {
+                        type: "otome-study-complete",
+                        study: "study-c1"
+                    },
+                    "*"
+                );
+            }
         }
     </script>
+
 </body>
+
 </html>

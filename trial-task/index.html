@@ -9,7 +9,7 @@
         content="width=device-width, initial-scale=1.0"
     >
 
-    <title>Study S2</title>
+    <title>Practice Task</title>
 
     <style>
         * {
@@ -46,7 +46,7 @@
             background: black;
         }
 
-        /* Two video players reduce black flashes */
+        /* Two video layers reduce black flashes */
 
         .storyVideo {
             position: absolute;
@@ -69,7 +69,7 @@
             z-index: 2;
         }
 
-        /* Opening screen */
+        /* Introduction */
 
         #introScreen {
             position: absolute;
@@ -112,11 +112,11 @@
 
             color: white;
 
-            font-size: clamp(19px, 2.2vw, 26px);
+            font-size: clamp(20px, 2.2vw, 26px);
             line-height: 1.5;
             font-weight: 400;
 
-            text-align: left;
+            text-align: center;
 
             opacity: 0;
             transform: translateY(12px);
@@ -179,7 +179,7 @@
             cursor: default;
         }
 
-        /* Invisible interaction area */
+        /* Invisible click area */
 
         #clickScreen {
             position: absolute;
@@ -211,8 +211,6 @@
 
     <div id="game">
 
-        <!-- Alternating video players -->
-
         <video
             id="videoA"
             class="storyVideo"
@@ -227,18 +225,19 @@
             preload="auto"
         ></video>
 
-        <!-- Click anywhere after each scene -->
+        <!-- Becomes clickable when a clip ends -->
 
         <div id="clickScreen"></div>
 
-        <!-- Opening appears immediately -->
+        <!-- Practice instruction -->
 
         <div id="introScreen">
 
             <div id="introContent">
 
                 <p id="introText">
-                    It’s the Linkon New Year. You meet Sylus, your romantic partner, near a crowded temple fair. As you show him around the celebration, you bring him over to watch a street performance.
+                    When you see a visual cue to interact,
+                    click on the screen.
                 </p>
 
                 <button
@@ -253,29 +252,25 @@
 
         </div>
 
-        <!-- No completion message -->
-
         <div id="endingScreen"></div>
 
     </div>
 
     <script>
         /* ==========================================
-           VIDEO LIST: SYLUS LOW 1–6
+           PRACTICE VIDEO LIST
         ========================================== */
 
         const videos = [
-            "../assets/sylus-low-intimacy/sylus low 1.mp4",
-            "../assets/sylus-low-intimacy/sylus low 2.mp4",
-            "../assets/sylus-low-intimacy/sylus low 3.mp4",
-            "../assets/sylus-low-intimacy/sylus low 4.mp4",
-            "../assets/sylus-low-intimacy/sylus low 5.mp4",
-            "../assets/sylus-low-intimacy/sylus low 6.mp4"
+            "../assets/trial-task/trial task 1.mp4",
+            "../assets/trial-task/trial task 2.mp4",
+            "../assets/trial-task/trial task 3.mp4",
+            "../assets/trial-task/trial task 4.mp4"
         ];
 
         let currentVideo = 0;
         let clickStartTime = 0;
-        let studyFinished = false;
+        let practiceFinished = false;
         let switchingVideo = false;
 
         const clickData = [];
@@ -320,7 +315,6 @@
 
         /*
         Show Begin after three seconds.
-        Participants may read for longer if needed.
         */
 
         setTimeout(function () {
@@ -386,7 +380,7 @@
         }
 
         /* ==========================================
-           BEGIN
+           BEGIN PRACTICE
         ========================================== */
 
         beginButton.addEventListener(
@@ -413,8 +407,8 @@
             activeVideo.currentTime = 0;
 
             /*
-            Keep the introduction visible until
-            the first video frame is ready.
+            Keep the instruction visible until
+            the first frame is ready.
             */
 
             afterVideoFrame(
@@ -434,7 +428,7 @@
             activeVideo.play()
                 .then(function () {
                     console.log(
-                        "Playing:",
+                        "Playing practice clip:",
                         videos[currentVideo]
                     );
                 })
@@ -493,7 +487,7 @@
             incomingVideo.play()
                 .then(function () {
                     console.log(
-                        "Playing:",
+                        "Playing practice clip:",
                         videos[currentVideo]
                     );
                 })
@@ -504,7 +498,7 @@
         }
 
         /* ==========================================
-           VIDEO ENDED
+           VISUAL CUE READY
         ========================================== */
 
         function handleVideoEnded(event) {
@@ -514,19 +508,10 @@
                 return;
             }
 
-            const isLastVideo =
-                currentVideo ===
-                videos.length - 1;
-
             /*
-            Video 6 automatically completes
-            the stimulus.
+            The final frame remains visible.
+            The participant can now click anywhere.
             */
-
-            if (isLastVideo) {
-                finishStudy();
-                return;
-            }
 
             clickStartTime =
                 performance.now();
@@ -534,7 +519,7 @@
             clickScreen.style.display = "block";
 
             console.log(
-                "Waiting for click after:",
+                "Waiting for practice click after:",
                 videos[currentVideo]
             );
         }
@@ -550,7 +535,7 @@
         );
 
         /* ==========================================
-           CLICK ANYWHERE TO CONTINUE
+           CLICK TO INTERACT
         ========================================== */
 
         clickScreen.addEventListener(
@@ -560,8 +545,6 @@
                     return;
                 }
 
-                switchingVideo = true;
-
                 const reactionTime =
                     performance.now() -
                     clickStartTime;
@@ -570,7 +553,7 @@
                     game.getBoundingClientRect();
 
                 clickData.push({
-                    interaction:
+                    practiceInteraction:
                         currentVideo + 1,
 
                     video:
@@ -594,6 +577,20 @@
 
                 clickScreen.style.display = "none";
 
+                /*
+                After the fourth successful click,
+                finish the practice task.
+                */
+
+                if (
+                    currentVideo ===
+                    videos.length - 1
+                ) {
+                    finishPractice();
+                    return;
+                }
+
+                switchingVideo = true;
                 currentVideo++;
 
                 playPreloadedVideo();
@@ -606,7 +603,7 @@
 
         function showPlaybackError(error) {
             console.error(
-                "Video playback error:",
+                "Practice playback error:",
                 error
             );
 
@@ -620,12 +617,12 @@
            FINISH AND NOTIFY QUALTRICS
         ========================================== */
 
-        function finishStudy() {
-            if (studyFinished) {
+        function finishPractice() {
+            if (practiceFinished) {
                 return;
             }
 
-            studyFinished = true;
+            practiceFinished = true;
 
             videoA.pause();
             videoB.pause();
@@ -638,21 +635,16 @@
             endingScreen.style.display = "block";
 
             console.log(
-                "STUDY S2 COMPLETE"
+                "PRACTICE TASK COMPLETE"
             );
 
             console.table(clickData);
-
-            /*
-            Tell Qualtrics that Sylus Low
-            has finished.
-            */
 
             if (window.parent !== window) {
                 window.parent.postMessage(
                     {
                         type: "otome-study-complete",
-                        study: "study-s2"
+                        study: "trial-task"
                     },
                     "*"
                 );
