@@ -9,7 +9,7 @@
         content="width=device-width, initial-scale=1.0"
     >
 
-    <title>Sylus New Year Study</title>
+    <title>Study S2</title>
 
     <style>
         * {
@@ -46,7 +46,7 @@
             background: black;
         }
 
-        /* Two layers help prevent black flashes */
+        /* Two video players reduce black flashes */
 
         .storyVideo {
             position: absolute;
@@ -61,88 +61,66 @@
             opacity: 0;
             z-index: 1;
 
-            transition: opacity 0.2s ease;
+            transition: none;
         }
 
-        .storyVideo.visible {
+        #videoA {
             opacity: 1;
             z-index: 2;
         }
 
-        /* Begin screen */
-
-        #startScreen {
-            position: absolute;
-            inset: 0;
-
-            display: flex;
-            justify-content: center;
-            align-items: center;
-
-            background: black;
-            z-index: 30;
-        }
-
-        #startButton {
-            padding: 15px 35px;
-
-            border: none;
-            border-radius: 30px;
-
-            background: white;
-            color: black;
-
-            font-size: 18px;
-            cursor: pointer;
-        }
-
-        #startButton:hover {
-            background: #e8e8e8;
-        }
-
-        /* Opening text */
+        /* Opening screen */
 
         #introScreen {
             position: absolute;
             inset: 0;
 
-            display: none;
+            display: flex;
             justify-content: center;
             align-items: center;
 
-            padding: 40px;
+            padding: 36px;
 
             background: black;
             color: white;
 
-            text-align: center;
-            z-index: 25;
+            z-index: 30;
 
             opacity: 1;
-            transition: opacity 0.6s ease;
+            transition: opacity 0.4s ease;
         }
 
-        #introScreen.show {
-            display: flex;
-        }
-
-        #introScreen.fadeOut {
+        #introScreen.hidden {
             opacity: 0;
+            pointer-events: none;
+        }
+
+        #introContent {
+            width: 100%;
+            max-width: 620px;
+
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+
+            gap: 30px;
         }
 
         #introText {
-            max-width: 350px;
+            width: 100%;
             margin: 0;
 
-            font-size: 20px;
-            line-height: 1.6;
+            color: white;
+
+            font-size: clamp(19px, 2.2vw, 26px);
+            line-height: 1.5;
             font-weight: 400;
+
+            text-align: left;
 
             opacity: 0;
             transform: translateY(12px);
-        }
 
-        #introScreen.show #introText {
             animation:
                 introFadeIn 1.5s ease-out 0.2s forwards;
         }
@@ -159,7 +137,49 @@
             }
         }
 
-        /* Invisible click area */
+        /* Begin button */
+
+        #beginButton {
+            padding: 14px 38px;
+
+            border: none;
+            border-radius: 30px;
+
+            background: white;
+            color: black;
+
+            font-family: inherit;
+            font-size: 18px;
+
+            cursor: pointer;
+
+            opacity: 0;
+            transform: translateY(8px);
+
+            pointer-events: none;
+
+            transition:
+                opacity 0.6s ease,
+                transform 0.6s ease,
+                background 0.2s ease;
+        }
+
+        #beginButton.visible {
+            opacity: 1;
+            transform: translateY(0);
+
+            pointer-events: auto;
+        }
+
+        #beginButton:hover {
+            background: #e8e8e8;
+        }
+
+        #beginButton:disabled {
+            cursor: default;
+        }
+
+        /* Invisible interaction area */
 
         #clickScreen {
             position: absolute;
@@ -173,20 +193,15 @@
             z-index: 20;
         }
 
-        /* Ending screen */
+        /* Black screen while Qualtrics advances */
 
-        #finishScreen {
+        #endingScreen {
             position: absolute;
             inset: 0;
 
             display: none;
-            justify-content: center;
-            align-items: center;
 
             background: black;
-            color: white;
-
-            font-size: 20px;
             z-index: 40;
         }
     </style>
@@ -196,7 +211,7 @@
 
     <div id="game">
 
-        <!-- Two video players for smooth switching -->
+        <!-- Alternating video players -->
 
         <video
             id="videoA"
@@ -216,34 +231,42 @@
 
         <div id="clickScreen"></div>
 
-        <!-- Begin -->
-
-        <div id="startScreen">
-            <button id="startButton">
-                Begin
-            </button>
-        </div>
-
-        <!-- Five-second opening -->
+        <!-- Opening appears immediately -->
 
         <div id="introScreen">
-            <p id="introText">
-                It’s New Year’s. You and Sylus have arranged
-                to meet at a street corner.
-            </p>
+
+            <div id="introContent">
+
+                <p id="introText">
+                    You are celebrating the Linkon New Year with
+                    Sylus, your romantic partner. At a crowded
+                    temple fair, you stop to watch a street
+                    performance together. Because Sylus is
+                    unfamiliar with the area, you have been
+                    showing him around.
+                </p>
+
+                <button
+                    id="beginButton"
+                    type="button"
+                    disabled
+                >
+                    Begin
+                </button>
+
+            </div>
+
         </div>
 
-        <!-- Ending -->
+        <!-- No completion message -->
 
-        <div id="finishScreen">
-            Story Complete
-        </div>
+        <div id="endingScreen"></div>
 
     </div>
 
     <script>
         /* ==========================================
-           VIDEO LIST
+           VIDEO LIST: SYLUS LOW 1–6
         ========================================== */
 
         const videos = [
@@ -255,23 +278,19 @@
             "../assets/sylus-low-intimacy/sylus low 6.mp4"
         ];
 
-        /* ==========================================
-           VARIABLES
-        ========================================== */
-
-        let currentVideoIndex = 0;
-
-        let activeVideo;
-        let inactiveVideo;
-
+        let currentVideo = 0;
         let clickStartTime = 0;
-        let clickData = [];
-
+        let studyFinished = false;
         let switchingVideo = false;
 
+        const clickData = [];
+
         /* ==========================================
-           ELEMENTS
+           PAGE ELEMENTS
         ========================================== */
+
+        const game =
+            document.getElementById("game");
 
         const videoA =
             document.getElementById("videoA");
@@ -282,82 +301,112 @@
         const clickScreen =
             document.getElementById("clickScreen");
 
-        const startScreen =
-            document.getElementById("startScreen");
-
-        const startButton =
-            document.getElementById("startButton");
-
         const introScreen =
             document.getElementById("introScreen");
 
-        const finishScreen =
-            document.getElementById("finishScreen");
+        const beginButton =
+            document.getElementById("beginButton");
 
-        const game =
-            document.getElementById("game");
+        const endingScreen =
+            document.getElementById("endingScreen");
+
+        let activeVideo = videoA;
+        let standbyVideo = videoB;
 
         /* ==========================================
            INITIAL PRELOAD
         ========================================== */
 
-        activeVideo = videoA;
-        inactiveVideo = videoB;
+        preloadVideo(activeVideo, 0);
+        preloadVideo(standbyVideo, 1);
 
-        setVideoSource(
-            activeVideo,
-            videos[0]
-        );
+        activeVideo.style.opacity = "1";
+        activeVideo.style.zIndex = "2";
 
-        if (videos.length > 1) {
-            setVideoSource(
-                inactiveVideo,
-                videos[1]
-            );
-        }
+        /*
+        Show Begin after three seconds.
+        Participants may read for longer if needed.
+        */
 
-        function setVideoSource(videoElement, source) {
-            if (videoElement.dataset.source === source) {
+        setTimeout(function () {
+            beginButton.disabled = false;
+            beginButton.classList.add("visible");
+        }, 3000);
+
+        /* ==========================================
+           PRELOAD VIDEO
+        ========================================== */
+
+        function preloadVideo(
+            videoElement,
+            videoIndex
+        ) {
+            videoElement.pause();
+
+            videoElement.style.opacity = "0";
+            videoElement.style.zIndex = "1";
+
+            if (videoIndex >= videos.length) {
+                videoElement.removeAttribute("src");
+                videoElement.load();
                 return;
             }
 
-            videoElement.dataset.source = source;
-            videoElement.src = source;
+            videoElement.src = videos[videoIndex];
+            videoElement.preload = "auto";
             videoElement.load();
+        }
+
+        /* ==========================================
+           WAIT FOR A REAL VIDEO FRAME
+        ========================================== */
+
+        function afterVideoFrame(
+            videoElement,
+            callback
+        ) {
+            if (
+                typeof videoElement
+                    .requestVideoFrameCallback
+                === "function"
+            ) {
+                videoElement.requestVideoFrameCallback(
+                    callback
+                );
+            } else {
+                videoElement.addEventListener(
+                    "playing",
+                    function () {
+                        requestAnimationFrame(
+                            function () {
+                                requestAnimationFrame(
+                                    callback
+                                );
+                            }
+                        );
+                    },
+                    { once: true }
+                );
+            }
         }
 
         /* ==========================================
            BEGIN
         ========================================== */
 
-        startButton.addEventListener(
+        beginButton.addEventListener(
             "click",
             function () {
-                startButton.disabled = true;
+                if (beginButton.disabled) {
+                    return;
+                }
 
-                startScreen.style.display = "none";
+                beginButton.disabled = true;
 
-                introScreen.classList.add("show");
+                currentVideo = 0;
+                clickData.length = 0;
 
-                /*
-                Begin fading shortly before
-                the five-second opening ends.
-                */
-
-                setTimeout(function () {
-                    introScreen.classList.add("fadeOut");
-                }, 4400);
-
-                /*
-                Begin video 1 automatically
-                after five seconds.
-                */
-
-                setTimeout(function () {
-                    introScreen.style.display = "none";
-
-                    playFirstVideo();
-                }, 5000);
+                playFirstVideo();
             }
         );
 
@@ -366,29 +415,134 @@
         ========================================== */
 
         function playFirstVideo() {
-            currentVideoIndex = 0;
-
             activeVideo.currentTime = 0;
-            activeVideo.classList.add("visible");
 
-            const playPromise =
-                activeVideo.play();
+            /*
+            Keep the introduction visible until
+            the first video frame is ready.
+            */
 
-            if (playPromise !== undefined) {
-                playPromise.catch(function (error) {
-                    console.error(error);
+            afterVideoFrame(
+                activeVideo,
+                function () {
+                    activeVideo.style.opacity = "1";
+                    activeVideo.style.zIndex = "2";
 
-                    alert(
-                        "Could not play video:\n" +
-                        videos[currentVideoIndex]
+                    introScreen.classList.add("hidden");
+
+                    setTimeout(function () {
+                        introScreen.style.display = "none";
+                    }, 400);
+                }
+            );
+
+            activeVideo.play()
+                .then(function () {
+                    console.log(
+                        "Playing:",
+                        videos[currentVideo]
                     );
+                })
+                .catch(function (error) {
+                    showPlaybackError(error);
                 });
-            }
         }
 
         /* ==========================================
-           VIDEO FINISHED
+           PLAY NEXT VIDEO
         ========================================== */
+
+        function playPreloadedVideo() {
+            const outgoingVideo =
+                activeVideo;
+
+            const incomingVideo =
+                standbyVideo;
+
+            let hasSwitched = false;
+
+            incomingVideo.currentTime = 0;
+
+            function switchToIncomingVideo() {
+                if (hasSwitched) {
+                    return;
+                }
+
+                hasSwitched = true;
+
+                incomingVideo.style.zIndex = "3";
+                incomingVideo.style.opacity = "1";
+
+                outgoingVideo.style.opacity = "0";
+                outgoingVideo.style.zIndex = "1";
+
+                activeVideo = incomingVideo;
+                standbyVideo = outgoingVideo;
+
+                activeVideo.style.opacity = "1";
+                activeVideo.style.zIndex = "2";
+
+                switchingVideo = false;
+
+                preloadVideo(
+                    standbyVideo,
+                    currentVideo + 1
+                );
+            }
+
+            afterVideoFrame(
+                incomingVideo,
+                switchToIncomingVideo
+            );
+
+            incomingVideo.play()
+                .then(function () {
+                    console.log(
+                        "Playing:",
+                        videos[currentVideo]
+                    );
+                })
+                .catch(function (error) {
+                    switchingVideo = false;
+                    showPlaybackError(error);
+                });
+        }
+
+        /* ==========================================
+           VIDEO ENDED
+        ========================================== */
+
+        function handleVideoEnded(event) {
+            if (
+                event.currentTarget !== activeVideo
+            ) {
+                return;
+            }
+
+            const isLastVideo =
+                currentVideo ===
+                videos.length - 1;
+
+            /*
+            Video 6 automatically completes
+            the stimulus.
+            */
+
+            if (isLastVideo) {
+                finishStudy();
+                return;
+            }
+
+            clickStartTime =
+                performance.now();
+
+            clickScreen.style.display = "block";
+
+            console.log(
+                "Waiting for click after:",
+                videos[currentVideo]
+            );
+        }
 
         videoA.addEventListener(
             "ended",
@@ -400,36 +554,8 @@
             handleVideoEnded
         );
 
-        function handleVideoEnded(event) {
-            if (event.target !== activeVideo) {
-                return;
-            }
-
-            /*
-            Video 6 ends the story automatically.
-            */
-
-            if (
-                currentVideoIndex ===
-                videos.length - 1
-            ) {
-                finishStudy();
-                return;
-            }
-
-            clickScreen.style.display = "block";
-
-            clickStartTime =
-                performance.now();
-
-            console.log(
-                "Waiting for click after video",
-                currentVideoIndex + 1
-            );
-        }
-
         /* ==========================================
-           CLICK ANYWHERE
+           CLICK ANYWHERE TO CONTINUE
         ========================================== */
 
         clickScreen.addEventListener(
@@ -450,7 +576,10 @@
 
                 clickData.push({
                     interaction:
-                        currentVideoIndex + 1,
+                        currentVideo + 1,
+
+                    video:
+                        videos[currentVideo],
 
                     reactionTime:
                         Math.round(reactionTime),
@@ -468,127 +597,71 @@
                         )
                 });
 
-                console.log(
-                    "Interaction",
-                    currentVideoIndex + 1,
-                    "RT:",
-                    Math.round(reactionTime),
-                    "ms"
-                );
-
                 clickScreen.style.display = "none";
 
-                currentVideoIndex++;
+                currentVideo++;
 
-                switchToNextVideo();
+                playPreloadedVideo();
             }
         );
 
         /* ==========================================
-           SMOOTH VIDEO SWITCH
+           PLAYBACK ERROR
         ========================================== */
 
-        function switchToNextVideo() {
-            const outgoingVideo =
-                activeVideo;
-
-            const incomingVideo =
-                inactiveVideo;
-
-            setVideoSource(
-                incomingVideo,
-                videos[currentVideoIndex]
+        function showPlaybackError(error) {
+            console.error(
+                "Video playback error:",
+                error
             );
 
-            incomingVideo.currentTime = 0;
-
-            const showIncomingVideo =
-                function () {
-                    /*
-                    Keep the previous final frame visible
-                    until the new video starts playing.
-                    */
-
-                    incomingVideo.classList.add(
-                        "visible"
-                    );
-
-                    outgoingVideo.classList.remove(
-                        "visible"
-                    );
-
-                    activeVideo =
-                        incomingVideo;
-
-                    inactiveVideo =
-                        outgoingVideo;
-
-                    switchingVideo = false;
-
-                    setTimeout(function () {
-                        preloadFollowingVideo();
-                    }, 250);
-                };
-
-            incomingVideo.addEventListener(
-                "playing",
-                showIncomingVideo,
-                { once: true }
+            alert(
+                "Could not play this video:\n" +
+                videos[currentVideo]
             );
-
-            const playPromise =
-                incomingVideo.play();
-
-            if (playPromise !== undefined) {
-                playPromise.catch(function (error) {
-                    switchingVideo = false;
-
-                    console.error(error);
-
-                    alert(
-                        "Could not play video:\n" +
-                        videos[currentVideoIndex]
-                    );
-                });
-            }
         }
 
         /* ==========================================
-           PRELOAD FOLLOWING VIDEO
-        ========================================== */
-
-        function preloadFollowingVideo() {
-            const followingIndex =
-                currentVideoIndex + 1;
-
-            if (followingIndex < videos.length) {
-                setVideoSource(
-                    inactiveVideo,
-                    videos[followingIndex]
-                );
-            }
-        }
-
-        /* ==========================================
-           FINISH
+           FINISH AND NOTIFY QUALTRICS
         ========================================== */
 
         function finishStudy() {
-            clickScreen.style.display = "none";
+            if (studyFinished) {
+                return;
+            }
+
+            studyFinished = true;
 
             videoA.pause();
             videoB.pause();
 
-            videoA.classList.remove("visible");
-            videoB.classList.remove("visible");
+            videoA.style.opacity = "0";
+            videoB.style.opacity = "0";
 
-            finishScreen.style.display = "flex";
+            clickScreen.style.display = "none";
+            introScreen.style.display = "none";
+            endingScreen.style.display = "block";
 
             console.log(
-                "FINAL INTERACTION DATA:"
+                "STUDY S2 COMPLETE"
             );
 
             console.table(clickData);
+
+            /*
+            Tell Qualtrics that Sylus Low
+            has finished.
+            */
+
+            if (window.parent !== window) {
+                window.parent.postMessage(
+                    {
+                        type: "otome-study-complete",
+                        study: "study-s2"
+                    },
+                    "*"
+                );
+            }
         }
     </script>
 
