@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
 
@@ -20,17 +19,16 @@
         body {
             width: 100%;
             height: 100%;
+            margin: 0;
+            overflow: hidden;
+            background: #111;
+            font-family: Arial, Helvetica, sans-serif;
         }
 
         body {
-            margin: 0;
-
             display: flex;
-            justify-content: center;
             align-items: center;
-
-            background: #111;
-            font-family: Arial, sans-serif;
+            justify-content: center;
         }
 
         #game {
@@ -43,48 +41,48 @@
             max-height: 100vh;
 
             overflow: hidden;
-            background: black;
+            background: #000;
         }
 
-        /* Two video layers reduce black flashes */
+        /* Two video layers */
 
         .storyVideo {
             position: absolute;
             inset: 0;
+            z-index: 1;
 
             width: 100%;
             height: 100%;
 
             object-fit: contain;
-            background: black;
+            background: #000;
 
             opacity: 0;
-            z-index: 1;
-
-            transition: none;
+            visibility: hidden;
         }
 
-        #videoA {
-            opacity: 1;
+        .storyVideo.active {
             z-index: 2;
+            opacity: 1;
+            visibility: visible;
         }
 
-        /* Introduction */
+        /* Introduction screen */
 
         #introScreen {
             position: absolute;
             inset: 0;
+            z-index: 30;
 
             display: flex;
-            justify-content: center;
             align-items: center;
+            justify-content: center;
 
             padding: 36px;
 
-            background: black;
-            color: white;
-
-            z-index: 30;
+            background: #000;
+            color: #fff;
+            text-align: center;
 
             opacity: 1;
             transition: opacity 0.4s ease;
@@ -96,12 +94,12 @@
         }
 
         #introContent {
-            width: 100%;
-            max-width: 620px;
-
             display: flex;
             flex-direction: column;
             align-items: center;
+
+            width: 100%;
+            max-width: 620px;
 
             gap: 30px;
         }
@@ -110,13 +108,11 @@
             width: 100%;
             margin: 0;
 
-            color: white;
+            color: #fff;
 
-            font-size: clamp(20px, 2.2vw, 26px);
-            line-height: 1.5;
+            font-size: clamp(20px, 4.5vw, 26px);
             font-weight: 400;
-
-            text-align: center;
+            line-height: 1.5;
 
             opacity: 0;
             transform: translateY(12px);
@@ -145,8 +141,8 @@
             border: none;
             border-radius: 30px;
 
-            background: white;
-            color: black;
+            background: #fff;
+            color: #000;
 
             font-family: inherit;
             font-size: 18px;
@@ -154,9 +150,8 @@
             cursor: pointer;
 
             opacity: 0;
+            visibility: hidden;
             transform: translateY(8px);
-
-            pointer-events: none;
 
             transition:
                 opacity 0.6s ease,
@@ -166,9 +161,8 @@
 
         #beginButton.visible {
             opacity: 1;
+            visibility: visible;
             transform: translateY(0);
-
-            pointer-events: auto;
         }
 
         #beginButton:hover {
@@ -177,6 +171,7 @@
 
         #beginButton:disabled {
             cursor: default;
+            opacity: 0.65;
         }
 
         /* Invisible click area */
@@ -184,13 +179,18 @@
         #clickScreen {
             position: absolute;
             inset: 0;
+            z-index: 20;
 
             display: none;
 
             background: transparent;
             cursor: pointer;
 
-            z-index: 20;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        #clickScreen.enabled {
+            display: block;
         }
 
         /* Black screen while Qualtrics advances */
@@ -198,69 +198,57 @@
         #endingScreen {
             position: absolute;
             inset: 0;
+            z-index: 40;
 
             display: none;
-
-            background: black;
-            z-index: 40;
+            background: #000;
         }
     </style>
 </head>
 
 <body>
-
-    <div id="game">
-
+    <main id="game">
         <video
             id="videoA"
             class="storyVideo"
-            playsinline
             preload="auto"
+            playsinline
         ></video>
 
         <video
             id="videoB"
             class="storyVideo"
-            playsinline
             preload="auto"
+            playsinline
         ></video>
 
-        <!-- Becomes clickable when a clip ends -->
+        <div
+            id="clickScreen"
+            role="button"
+            aria-label="Continue the practice task"
+            tabindex="0"
+        ></div>
 
-        <div id="clickScreen"></div>
-
-        <!-- Practice instruction -->
-
-        <div id="introScreen">
-
+        <section id="introScreen">
             <div id="introContent">
-
                 <p id="introText">
                     When you see a visual cue to interact,
-                    click on the screen.
+                    click anywhere on the screen.
                 </p>
 
                 <button
                     id="beginButton"
                     type="button"
-                    disabled
                 >
                     Begin
                 </button>
-
             </div>
-
-        </div>
+        </section>
 
         <div id="endingScreen"></div>
-
-    </div>
+    </main>
 
     <script>
-        /* ==========================================
-           PRACTICE VIDEO LIST
-        ========================================== */
-
         const videos = [
             "../assets/trial-task/trial task 1.mp4",
             "../assets/trial-task/trial task 2.mp4",
@@ -268,28 +256,11 @@
             "../assets/trial-task/trial task 4.mp4"
         ];
 
-        let currentVideo = 0;
-        let clickStartTime = 0;
-        let practiceFinished = false;
-        let switchingVideo = false;
-
-        const clickData = [];
-
-        /* ==========================================
-           PAGE ELEMENTS
-        ========================================== */
-
-        const game =
-            document.getElementById("game");
-
         const videoA =
             document.getElementById("videoA");
 
         const videoB =
             document.getElementById("videoB");
-
-        const clickScreen =
-            document.getElementById("clickScreen");
 
         const introScreen =
             document.getElementById("introScreen");
@@ -297,43 +268,30 @@
         const beginButton =
             document.getElementById("beginButton");
 
+        const clickScreen =
+            document.getElementById("clickScreen");
+
         const endingScreen =
             document.getElementById("endingScreen");
 
         let activeVideo = videoA;
         let standbyVideo = videoB;
 
-        /* ==========================================
-           INITIAL PRELOAD
-        ========================================== */
-
-        preloadVideo(activeVideo, 0);
-        preloadVideo(standbyVideo, 1);
-
-        activeVideo.style.opacity = "1";
-        activeVideo.style.zIndex = "2";
+        let currentVideo = 0;
+        let waitingForClick = false;
+        let switchingVideo = false;
+        let practiceFinished = false;
 
         /*
-        Show Begin after three seconds.
+        Load a video into one of the two video layers.
         */
 
-        setTimeout(function () {
-            beginButton.disabled = false;
-            beginButton.classList.add("visible");
-        }, 3000);
-
-        /* ==========================================
-           PRELOAD VIDEO
-        ========================================== */
-
-        function preloadVideo(
+        function prepareVideo(
             videoElement,
             videoIndex
         ) {
             videoElement.pause();
-
-            videoElement.style.opacity = "0";
-            videoElement.style.zIndex = "1";
+            videoElement.classList.remove("active");
 
             if (videoIndex >= videos.length) {
                 videoElement.removeAttribute("src");
@@ -346,180 +304,126 @@
             videoElement.load();
         }
 
-        /* ==========================================
-           WAIT FOR A REAL VIDEO FRAME
-        ========================================== */
+        /*
+        Wait until the video can play.
+        */
 
-        function afterVideoFrame(
-            videoElement,
-            callback
-        ) {
-            if (
-                typeof videoElement
-                    .requestVideoFrameCallback
-                === "function"
-            ) {
-                videoElement.requestVideoFrameCallback(
-                    callback
-                );
-            } else {
+        function waitUntilPlayable(videoElement) {
+            return new Promise(function (resolve) {
+                if (videoElement.readyState >= 3) {
+                    resolve();
+                    return;
+                }
+
+                const handleReady = function () {
+                    videoElement.removeEventListener(
+                        "canplay",
+                        handleReady
+                    );
+
+                    resolve();
+                };
+
                 videoElement.addEventListener(
-                    "playing",
-                    function () {
-                        requestAnimationFrame(
-                            function () {
-                                requestAnimationFrame(
-                                    callback
-                                );
-                            }
-                        );
-                    },
+                    "canplay",
+                    handleReady,
                     { once: true }
                 );
-            }
+            });
         }
 
-        /* ==========================================
-           BEGIN PRACTICE
-        ========================================== */
+        /*
+        Initial preload.
+        */
+
+        prepareVideo(videoA, 0);
+        prepareVideo(videoB, 1);
+
+        /*
+        Show the Begin button after three seconds.
+        */
+
+        window.setTimeout(function () {
+            beginButton.classList.add("visible");
+        }, 3000);
+
+        /*
+        Begin the practice task.
+        */
 
         beginButton.addEventListener(
             "click",
-            function () {
-                if (beginButton.disabled) {
+            async function () {
+                if (
+                    beginButton.disabled ||
+                    switchingVideo
+                ) {
                     return;
                 }
 
                 beginButton.disabled = true;
-
+                switchingVideo = true;
                 currentVideo = 0;
-                clickData.length = 0;
 
-                playFirstVideo();
+                try {
+                    await waitUntilPlayable(activeVideo);
+
+                    activeVideo.currentTime = 0;
+                    await activeVideo.play();
+
+                    activeVideo.classList.add("active");
+                    introScreen.classList.add("hidden");
+
+                    window.setTimeout(function () {
+                        introScreen.style.display = "none";
+                    }, 400);
+                } catch (error) {
+                    console.error(
+                        "The first practice video could not play:",
+                        error
+                    );
+
+                    beginButton.disabled = false;
+                } finally {
+                    switchingVideo = false;
+                }
             }
         );
 
-        /* ==========================================
-           PLAY FIRST VIDEO
-        ========================================== */
-
-        function playFirstVideo() {
-            activeVideo.currentTime = 0;
-
-            /*
-            Keep the instruction visible until
-            the first frame is ready.
-            */
-
-            afterVideoFrame(
-                activeVideo,
-                function () {
-                    activeVideo.style.opacity = "1";
-                    activeVideo.style.zIndex = "2";
-
-                    introScreen.classList.add("hidden");
-
-                    setTimeout(function () {
-                        introScreen.style.display = "none";
-                    }, 400);
-                }
-            );
-
-            activeVideo.play()
-                .then(function () {
-                    console.log(
-                        "Playing practice clip:",
-                        videos[currentVideo]
-                    );
-                })
-                .catch(function (error) {
-                    showPlaybackError(error);
-                });
-        }
-
-        /* ==========================================
-           PLAY NEXT VIDEO
-        ========================================== */
-
-        function playPreloadedVideo() {
-            const outgoingVideo =
-                activeVideo;
-
-            const incomingVideo =
-                standbyVideo;
-
-            let hasSwitched = false;
-
-            incomingVideo.currentTime = 0;
-
-            function switchToIncomingVideo() {
-                if (hasSwitched) {
-                    return;
-                }
-
-                hasSwitched = true;
-
-                incomingVideo.style.zIndex = "3";
-                incomingVideo.style.opacity = "1";
-
-                outgoingVideo.style.opacity = "0";
-                outgoingVideo.style.zIndex = "1";
-
-                activeVideo = incomingVideo;
-                standbyVideo = outgoingVideo;
-
-                activeVideo.style.opacity = "1";
-                activeVideo.style.zIndex = "2";
-
-                switchingVideo = false;
-
-                preloadVideo(
-                    standbyVideo,
-                    currentVideo + 1
-                );
-            }
-
-            afterVideoFrame(
-                incomingVideo,
-                switchToIncomingVideo
-            );
-
-            incomingVideo.play()
-                .then(function () {
-                    console.log(
-                        "Playing practice clip:",
-                        videos[currentVideo]
-                    );
-                })
-                .catch(function (error) {
-                    switchingVideo = false;
-                    showPlaybackError(error);
-                });
-        }
-
-        /* ==========================================
-           VISUAL CUE READY
-        ========================================== */
+        /*
+        A video has ended.
+        */
 
         function handleVideoEnded(event) {
             if (
-                event.currentTarget !== activeVideo
+                event.currentTarget !== activeVideo ||
+                practiceFinished
             ) {
                 return;
             }
 
             /*
-            The final frame remains visible.
-            The participant can now click anywhere.
+            The fourth and final video advances
+            automatically without another click.
             */
 
-            clickStartTime =
-                performance.now();
+            if (
+                currentVideo ===
+                videos.length - 1
+            ) {
+                finishPractice();
+                return;
+            }
 
-            clickScreen.style.display = "block";
+            /*
+            After videos 1–3, wait for a click.
+            */
+
+            waitingForClick = true;
+            clickScreen.classList.add("enabled");
 
             console.log(
-                "Waiting for practice click after:",
+                "Waiting for a click after:",
                 videos[currentVideo]
             );
         }
@@ -534,88 +438,94 @@
             handleVideoEnded
         );
 
-        /* ==========================================
-           CLICK TO INTERACT
-        ========================================== */
+        /*
+        Play the next video after a click.
+        */
+
+        async function continuePractice() {
+            if (
+                !waitingForClick ||
+                switchingVideo ||
+                practiceFinished
+            ) {
+                return;
+            }
+
+            waitingForClick = false;
+            switchingVideo = true;
+
+            clickScreen.classList.remove("enabled");
+
+            const nextVideoIndex =
+                currentVideo + 1;
+
+            try {
+                await waitUntilPlayable(standbyVideo);
+
+                standbyVideo.currentTime = 0;
+                await standbyVideo.play();
+
+                /*
+                Show the incoming video only after
+                it has successfully started.
+                */
+
+                standbyVideo.classList.add("active");
+                activeVideo.classList.remove("active");
+
+                activeVideo.pause();
+                activeVideo.removeAttribute("src");
+                activeVideo.load();
+
+                const previousVideo = activeVideo;
+
+                activeVideo = standbyVideo;
+                standbyVideo = previousVideo;
+
+                currentVideo = nextVideoIndex;
+
+                /*
+                Preload the following video.
+                */
+
+                prepareVideo(
+                    standbyVideo,
+                    currentVideo + 1
+                );
+            } catch (error) {
+                console.error(
+                    "The next practice video could not play:",
+                    error
+                );
+
+                waitingForClick = true;
+                clickScreen.classList.add("enabled");
+            } finally {
+                switchingVideo = false;
+            }
+        }
 
         clickScreen.addEventListener(
             "click",
+            continuePractice
+        );
+
+        clickScreen.addEventListener(
+            "keydown",
             function (event) {
-                if (switchingVideo) {
-                    return;
-                }
-
-                const reactionTime =
-                    performance.now() -
-                    clickStartTime;
-
-                const gameRect =
-                    game.getBoundingClientRect();
-
-                clickData.push({
-                    practiceInteraction:
-                        currentVideo + 1,
-
-                    video:
-                        videos[currentVideo],
-
-                    reactionTime:
-                        Math.round(reactionTime),
-
-                    clickX:
-                        Math.round(
-                            event.clientX -
-                            gameRect.left
-                        ),
-
-                    clickY:
-                        Math.round(
-                            event.clientY -
-                            gameRect.top
-                        )
-                });
-
-                clickScreen.style.display = "none";
-
-                /*
-                After the fourth successful click,
-                finish the practice task.
-                */
-
                 if (
-                    currentVideo ===
-                    videos.length - 1
+                    event.key === "Enter" ||
+                    event.key === " "
                 ) {
-                    finishPractice();
-                    return;
+                    event.preventDefault();
+                    continuePractice();
                 }
-
-                switchingVideo = true;
-                currentVideo++;
-
-                playPreloadedVideo();
             }
         );
 
-        /* ==========================================
-           PLAYBACK ERROR
-        ========================================== */
-
-        function showPlaybackError(error) {
-            console.error(
-                "Practice playback error:",
-                error
-            );
-
-            alert(
-                "Could not play this video:\n" +
-                videos[currentVideo]
-            );
-        }
-
-        /* ==========================================
-           FINISH AND NOTIFY QUALTRICS
-        ========================================== */
+        /*
+        Finish the practice task and notify Qualtrics.
+        */
 
         function finishPractice() {
             if (practiceFinished) {
@@ -623,35 +533,26 @@
             }
 
             practiceFinished = true;
+            waitingForClick = false;
 
             videoA.pause();
             videoB.pause();
 
-            videoA.style.opacity = "0";
-            videoB.style.opacity = "0";
+            videoA.classList.remove("active");
+            videoB.classList.remove("active");
 
-            clickScreen.style.display = "none";
+            clickScreen.classList.remove("enabled");
             introScreen.style.display = "none";
             endingScreen.style.display = "block";
 
-            console.log(
-                "PRACTICE TASK COMPLETE"
+            window.parent.postMessage(
+                {
+                    type: "otome-study-complete",
+                    study: "trial-task"
+                },
+                "*"
             );
-
-            console.table(clickData);
-
-            if (window.parent !== window) {
-                window.parent.postMessage(
-                    {
-                        type: "otome-study-complete",
-                        study: "trial-task"
-                    },
-                    "*"
-                );
-            }
         }
     </script>
-
 </body>
-
 </html>
