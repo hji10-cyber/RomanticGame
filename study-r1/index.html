@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
 
@@ -8,16 +9,21 @@
         content="width=device-width, initial-scale=1.0"
     >
 
-    <title>Study C4</title>
+    <title>Study R1</title>
 
     <style>
         * {
             box-sizing: border-box;
         }
 
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+        }
+
         body {
             margin: 0;
-            min-height: 100vh;
 
             display: flex;
             justify-content: center;
@@ -40,10 +46,7 @@
             background: black;
         }
 
-        /*
-         * Two video players alternate.
-         * One plays while the other preloads.
-         */
+        /* Two video layers reduce black flashes */
 
         .storyVideo {
             position: absolute;
@@ -66,9 +69,9 @@
             z-index: 2;
         }
 
-        /* Begin screen */
+        /* Opening screen */
 
-        #startScreen {
+        #introScreen {
             position: absolute;
             inset: 0;
 
@@ -76,57 +79,47 @@
             justify-content: center;
             align-items: center;
 
-            background: black;
-
-            z-index: 30;
-        }
-
-        #startButton {
-            padding: 15px 35px;
-
-            border: none;
-            border-radius: 30px;
-
-            background: white;
-            color: black;
-
-            font-size: 18px;
-            cursor: pointer;
-        }
-
-        #startButton:hover {
-            background: #e8e8e8;
-        }
-
-        /* Five-second introduction */
-
-        #introScreen {
-            position: absolute;
-            inset: 0;
-
-            display: none;
-            justify-content: center;
-            align-items: center;
-
-            padding: 40px;
+            padding: 36px;
 
             background: black;
             color: white;
 
-            text-align: center;
-            font-size: 20px;
-            line-height: 1.6;
+            z-index: 30;
 
-            z-index: 25;
+            opacity: 1;
+            transition: opacity 0.4s ease;
         }
 
-        /* Introduction fade-in animation */
+        #introScreen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
 
-        #introScreen p {
-            max-width: 350px;
+        #introContent {
+            width: 100%;
+            max-width: 620px;
+
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+
+            gap: 30px;
+        }
+
+        #introText {
+            width: 100%;
             margin: 0;
 
+            color: white;
+
+            font-size: clamp(19px, 2.2vw, 26px);
+            line-height: 1.5;
+            font-weight: 400;
+
+            text-align: left;
+
             opacity: 0;
+            transform: translateY(12px);
 
             animation:
                 introFadeIn 1.5s ease-out 0.2s forwards;
@@ -144,10 +137,49 @@
             }
         }
 
-        /*
-         * Transparent click area.
-         * Enabled after videos 1–6 finish.
-         */
+        /* Begin button */
+
+        #beginButton {
+            padding: 14px 38px;
+
+            border: none;
+            border-radius: 30px;
+
+            background: white;
+            color: black;
+
+            font-family: inherit;
+            font-size: 18px;
+
+            cursor: pointer;
+
+            opacity: 0;
+            transform: translateY(8px);
+
+            pointer-events: none;
+
+            transition:
+                opacity 0.6s ease,
+                transform 0.6s ease,
+                background 0.2s ease;
+        }
+
+        #beginButton.visible {
+            opacity: 1;
+            transform: translateY(0);
+
+            pointer-events: auto;
+        }
+
+        #beginButton:hover {
+            background: #e8e8e8;
+        }
+
+        #beginButton:disabled {
+            cursor: default;
+        }
+
+        /* Invisible interaction area */
 
         #clickScreen {
             position: absolute;
@@ -158,86 +190,77 @@
             background: transparent;
             cursor: pointer;
 
-            z-index: 15;
+            z-index: 20;
         }
 
-        /* Completion screen */
+        /* Black screen while Qualtrics advances */
 
-        #finishScreen {
+        #endingScreen {
             position: absolute;
             inset: 0;
 
             display: none;
-            justify-content: center;
-            align-items: center;
 
             background: black;
-            color: white;
-
-            font-size: 20px;
-            text-align: center;
-
             z-index: 40;
         }
     </style>
 </head>
 
 <body>
-    <div id="game">
 
-        <!-- Two alternating video players -->
+    <div id="game">
 
         <video
             id="videoA"
             class="storyVideo"
             playsinline
-            preload="auto">
-        </video>
+            preload="auto"
+        ></video>
 
         <video
             id="videoB"
             class="storyVideo"
             playsinline
-            preload="auto">
-        </video>
+            preload="auto"
+        ></video>
 
-        <!-- Click anywhere to continue -->
+        <!-- Click anywhere after each scene -->
 
         <div id="clickScreen"></div>
 
-        <!-- Five-second introduction -->
+        <!-- Opening appears immediately -->
 
         <div id="introScreen">
-            <p>
-                It’s Rafayel’s birthday. To celebrate,
-                the two of you have gone diving together.
-            </p>
+
+            <div id="introContent">
+
+                <p id="introText">
+                    It’s Rafayel’s birthday. You planned to go diving with Rafayel, your romantic partner, as part of his birthday celebration. Together, you explore a part of the ocean that holds special memories for him.
+                </p>
+
+                <button
+                    id="beginButton"
+                    type="button"
+                    disabled
+                >
+                    Begin
+                </button>
+
+            </div>
+
         </div>
 
-        <!-- Start screen -->
+        <!-- No completion message -->
 
-        <div id="startScreen">
-            <button id="startButton" type="button">
-                Begin
-            </button>
-        </div>
-
-        <!-- Completion screen -->
-
-        <div id="finishScreen">
-            Story Complete
-        </div>
+        <div id="endingScreen"></div>
 
     </div>
 
     <script>
-        /*
-         * Rafayel video list.
-         *
-         * This page is inside study-c4.
-         * The videos are inside:
-         * assets/rafayel-high-intimacy/
-         */
+        /* ==========================================
+           VIDEO LIST: RAFAYEL HIGH 1–7
+        ========================================== */
 
         const videos = [
             "../assets/rafayel-high-intimacy/Rafayel high 1.mp4",
@@ -251,10 +274,14 @@
 
         let currentVideo = 0;
         let clickStartTime = 0;
+        let studyFinished = false;
+        let switchingVideo = false;
 
         const clickData = [];
 
-        /* Page elements */
+        /* ==========================================
+           PAGE ELEMENTS
+        ========================================== */
 
         const game =
             document.getElementById("game");
@@ -271,24 +298,38 @@
         const introScreen =
             document.getElementById("introScreen");
 
-        const startScreen =
-            document.getElementById("startScreen");
+        const beginButton =
+            document.getElementById("beginButton");
 
-        const startButton =
-            document.getElementById("startButton");
-
-        const finishScreen =
-            document.getElementById("finishScreen");
-
-        /*
-         * activeVideo is visible.
-         * standbyVideo preloads the next scene.
-         */
+        const endingScreen =
+            document.getElementById("endingScreen");
 
         let activeVideo = videoA;
         let standbyVideo = videoB;
 
-        /* Preload a video */
+        /* ==========================================
+           INITIAL PRELOAD
+        ========================================== */
+
+        preloadVideo(activeVideo, 0);
+        preloadVideo(standbyVideo, 1);
+
+        activeVideo.style.opacity = "1";
+        activeVideo.style.zIndex = "2";
+
+        /*
+        Show Begin after three seconds.
+        Participants can read for longer if needed.
+        */
+
+        setTimeout(function () {
+            beginButton.disabled = false;
+            beginButton.classList.add("visible");
+        }, 3000);
+
+        /* ==========================================
+           PRELOAD VIDEO
+        ========================================== */
 
         function preloadVideo(
             videoElement,
@@ -310,10 +351,9 @@
             videoElement.load();
         }
 
-        /*
-         * Run a function after a real video frame
-         * has been decoded and rendered.
-         */
+        /* ==========================================
+           WAIT FOR A REAL VIDEO FRAME
+        ========================================== */
 
         function afterVideoFrame(
             videoElement,
@@ -328,10 +368,6 @@
                     callback
                 );
             } else {
-                /*
-                 * Fallback for older browsers.
-                 */
-
                 videoElement.addEventListener(
                     "playing",
                     function () {
@@ -348,69 +384,56 @@
             }
         }
 
-        /*
-         * Begin:
-         *
-         * 1. Show introduction for five seconds.
-         * 2. Load video 1.
-         * 3. Preload video 2.
-         */
+        /* ==========================================
+           BEGIN
+        ========================================== */
 
-        startButton.addEventListener(
+        beginButton.addEventListener(
             "click",
             function () {
-                startScreen.style.display = "none";
-                finishScreen.style.display = "none";
-                introScreen.style.display = "flex";
+                if (beginButton.disabled) {
+                    return;
+                }
+
+                beginButton.disabled = true;
 
                 currentVideo = 0;
                 clickData.length = 0;
 
-                activeVideo = videoA;
-                standbyVideo = videoB;
-
-                preloadVideo(activeVideo, 0);
-                preloadVideo(standbyVideo, 1);
-
-                activeVideo.style.opacity = "1";
-                activeVideo.style.zIndex = "2";
-
-                /*
-                 * 5000 milliseconds = 5 seconds.
-                 */
-
-                setTimeout(
-                    function () {
-                        playFirstVideo();
-                    },
-                    5000
-                );
+                playFirstVideo();
             }
         );
 
-        /*
-         * Play video 1.
-         *
-         * Keep the introduction visible until
-         * the first video frame is rendered.
-         */
+        /* ==========================================
+           PLAY FIRST VIDEO
+        ========================================== */
 
         function playFirstVideo() {
             activeVideo.currentTime = 0;
 
+            /*
+            Keep the introduction visible until
+            the first video frame is ready.
+            */
+
             afterVideoFrame(
                 activeVideo,
                 function () {
-                    introScreen.style.display =
-                        "none";
+                    activeVideo.style.opacity = "1";
+                    activeVideo.style.zIndex = "2";
+
+                    introScreen.classList.add("hidden");
+
+                    setTimeout(function () {
+                        introScreen.style.display = "none";
+                    }, 400);
                 }
             );
 
             activeVideo.play()
                 .then(function () {
                     console.log(
-                        "Playing video:",
-                        currentVideo + 1,
+                        "Playing:",
                         videos[currentVideo]
                     );
                 })
@@ -419,12 +442,9 @@
                 });
         }
 
-        /*
-         * Play the preloaded next video.
-         *
-         * Keep the old final frame visible until
-         * the new first frame is rendered.
-         */
+        /* ==========================================
+           PLAY NEXT VIDEO
+        ========================================== */
 
         function playPreloadedVideo() {
             const outgoingVideo =
@@ -444,23 +464,11 @@
 
                 hasSwitched = true;
 
-                /*
-                 * Show the ready incoming video.
-                 */
-
                 incomingVideo.style.zIndex = "3";
                 incomingVideo.style.opacity = "1";
 
-                /*
-                 * Hide the previous final frame.
-                 */
-
                 outgoingVideo.style.opacity = "0";
                 outgoingVideo.style.zIndex = "1";
-
-                /*
-                 * Exchange player roles.
-                 */
 
                 activeVideo = incomingVideo;
                 standbyVideo = outgoingVideo;
@@ -468,9 +476,7 @@
                 activeVideo.style.opacity = "1";
                 activeVideo.style.zIndex = "2";
 
-                /*
-                 * Preload the following video.
-                 */
+                switchingVideo = false;
 
                 preloadVideo(
                     standbyVideo,
@@ -486,17 +492,19 @@
             incomingVideo.play()
                 .then(function () {
                     console.log(
-                        "Playing video:",
-                        currentVideo + 1,
+                        "Playing:",
                         videos[currentVideo]
                     );
                 })
                 .catch(function (error) {
+                    switchingVideo = false;
                     showPlaybackError(error);
                 });
         }
 
-        /* Handle the end of both video players */
+        /* ==========================================
+           VIDEO ENDED
+        ========================================== */
 
         function handleVideoEnded(event) {
             if (
@@ -510,28 +518,23 @@
                 videos.length - 1;
 
             /*
-             * Video 7 automatically completes
-             * the story.
-             */
+            Video 7 automatically completes
+            the stimulus.
+            */
 
             if (isLastVideo) {
                 finishStudy();
                 return;
             }
 
-            /*
-             * After videos 1–6, wait for a click.
-             */
-
             clickStartTime =
                 performance.now();
 
-            clickScreen.style.display =
-                "block";
+            clickScreen.style.display = "block";
 
             console.log(
-                "Waiting for click after video:",
-                currentVideo + 1
+                "Waiting for click after:",
+                videos[currentVideo]
             );
         }
 
@@ -545,28 +548,25 @@
             handleVideoEnded
         );
 
-        /* Click anywhere to continue */
+        /* ==========================================
+           CLICK ANYWHERE TO CONTINUE
+        ========================================== */
 
         clickScreen.addEventListener(
             "click",
             function (event) {
+                if (switchingVideo) {
+                    return;
+                }
+
+                switchingVideo = true;
+
                 const reactionTime =
-                    performance.now()
-                    -
+                    performance.now() -
                     clickStartTime;
 
                 const gameRect =
                     game.getBoundingClientRect();
-
-                const clickX =
-                    event.clientX
-                    -
-                    gameRect.left;
-
-                const clickY =
-                    event.clientY
-                    -
-                    gameRect.top;
 
                 clickData.push({
                     interaction:
@@ -576,27 +576,22 @@
                         videos[currentVideo],
 
                     reactionTime:
-                        Math.round(
-                            reactionTime
-                        ),
+                        Math.round(reactionTime),
 
                     clickX:
-                        Math.round(clickX),
+                        Math.round(
+                            event.clientX -
+                            gameRect.left
+                        ),
 
                     clickY:
-                        Math.round(clickY)
+                        Math.round(
+                            event.clientY -
+                            gameRect.top
+                        )
                 });
 
-                console.log(
-                    "Interaction:",
-                    currentVideo + 1,
-                    "Reaction time:",
-                    Math.round(reactionTime),
-                    "ms"
-                );
-
-                clickScreen.style.display =
-                    "none";
+                clickScreen.style.display = "none";
 
                 currentVideo++;
 
@@ -604,7 +599,9 @@
             }
         );
 
-        /* Display playback errors */
+        /* ==========================================
+           PLAYBACK ERROR
+        ========================================== */
 
         function showPlaybackError(error) {
             console.error(
@@ -613,35 +610,55 @@
             );
 
             alert(
-                "Could not play this video:\n"
-                +
+                "Could not play this video:\n" +
                 videos[currentVideo]
             );
         }
 
-        /* Automatically finish after video 7 */
+        /* ==========================================
+           FINISH AND NOTIFY QUALTRICS
+        ========================================== */
 
         function finishStudy() {
+            if (studyFinished) {
+                return;
+            }
+
+            studyFinished = true;
+
             videoA.pause();
             videoB.pause();
 
             videoA.style.opacity = "0";
             videoB.style.opacity = "0";
 
-            introScreen.style.display = "none";
             clickScreen.style.display = "none";
-            finishScreen.style.display = "flex";
+            introScreen.style.display = "none";
+            endingScreen.style.display = "block";
 
             console.log(
-                "STUDY C4 COMPLETE"
-            );
-
-            console.log(
-                "FINAL INTERACTION DATA:"
+                "STUDY R1 COMPLETE"
             );
 
             console.table(clickData);
+
+            /*
+            Notify Qualtrics that Rafayel High
+            has finished.
+            */
+
+            if (window.parent !== window) {
+                window.parent.postMessage(
+                    {
+                        type: "otome-study-complete",
+                        study: "study-r1"
+                    },
+                    "*"
+                );
+            }
         }
     </script>
+
 </body>
+
 </html>
