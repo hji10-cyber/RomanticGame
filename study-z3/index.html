@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Zayne Firework</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+            background: #000;
+            font-family: Arial, Helvetica, sans-serif;
+        }
+
+        #game {
+    position: relative;
+
+    width: 100%;
+    height: 100%;
+
+    overflow: hidden;
+    background: black;
+}
+        .video-layer {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+
+            width: 100%;
+            height: 100%;
+
+            object-fit: contain;
+            background: #000;
+
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        .video-layer.active {
+            z-index: 2;
+            opacity: 1;
+            visibility: visible;
+        }
+
+        #introScreen {
+            position: absolute;
+            inset: 0;
+            z-index: 10;
+
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+
+            padding: 36px;
+            background: #000;
+            color: #fff;
+            text-align: center;
+        }
+
+        #introText {
+            max-width: 700px;
+            margin: 0;
+
+            font-size: clamp(21px, 4.5vw, 34px);
+            font-weight: 400;
+            line-height: 1.55;
+
+            opacity: 0;
+            transform: translateY(12px);
+
+            animation:
+                introFadeIn 1.5s ease-out 0.2s forwards;
+        }
+
+        #beginButton {
+            margin-top: 42px;
+            padding: 14px 38px;
+
+            border: none;
+            border-radius: 30px;
+
+            background: #fff;
+            color: #000;
+
+            font-size: 18px;
+            cursor: pointer;
+
+            opacity: 0;
+            visibility: hidden;
+
+            transition:
+                opacity 0.7s ease,
+                background 0.2s ease;
+        }
+
+        #beginButton.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        #beginButton:hover {
+            background: #e8e8e8;
+        }
+
+        #beginButton:disabled {
+            cursor: default;
+            opacity: 0.65;
+        }
+
+        #clickLayer {
+            position: absolute;
+            inset: 0;
+            z-index: 8;
+
+            display: none;
+            cursor: pointer;
+            background: transparent;
+
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        #clickLayer.enabled {
+            display: block;
+        }
+
+        @keyframes introFadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(12px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <main id="game">
+        <video
+            id="videoA"
+            class="video-layer"
+            preload="auto"
+            playsinline
+        ></video>
+
+        <video
+            id="videoB"
+            class="video-layer"
+            preload="auto"
+            playsinline
+        ></video>
+
+        <section id="introScreen">
+            <p id="introText">
+                It’s Zayne’s birthday. As midnight approaches, you spend the final moments of the celebration alone with Zayne, your romantic partner.
+            </p>
+
+            <button id="beginButton" type="button">
+                Begin
+            </button>
+        </section>
+
+        <div
+            id="clickLayer"
+            role="button"
+            aria-label="Continue the interaction"
+            tabindex="0"
+        ></div>
+    </main>
+
+    <script>
+        const videoFiles = [
+            "../assets/zayen-high-firework/zayne firework 1.mp4",
+            "../assets/zayen-high-firework/zayne firework 2.mp4",
+            "../assets/zayen-high-firework/zayne firework 3.mp4",
+            "../assets/zayen-high-firework/zayne firework 4.mp4",
+            "../assets/zayen-high-firework/zayne firework 5.mp4",
+            "../assets/zayen-high-firework/zayne firework 6.mp4",
+            "../assets/zayen-high-firework/zayne firework 7.mp4",
+            "../assets/zayen-high-firework/zayne firework 8.mp4"
+        ];
+
+        const introScreen =
+            document.getElementById("introScreen");
+
+        const beginButton =
+            document.getElementById("beginButton");
+
+        const clickLayer =
+            document.getElementById("clickLayer");
+
+        const videoA =
+            document.getElementById("videoA");
+
+        const videoB =
+            document.getElementById("videoB");
+
+        let activeVideo = videoA;
+        let standbyVideo = videoB;
+
+        let currentIndex = 0;
+        let waitingForClick = false;
+        let transitionInProgress = false;
+        let studyFinished = false;
+
+        function prepareVideo(video, index) {
+            if (index >= videoFiles.length) {
+                return;
+            }
+
+            video.src = videoFiles[index];
+            video.load();
+        }
+
+        function preloadNextVideo() {
+            const nextIndex = currentIndex + 1;
+
+            if (nextIndex < videoFiles.length) {
+                prepareVideo(
+                    standbyVideo,
+                    nextIndex
+                );
+            }
+        }
+
+        function waitUntilPlayable(video) {
+            return new Promise(function (resolve) {
+                if (video.readyState >= 3) {
+                    resolve();
+                    return;
+                }
+
+                const handleReady = function () {
+                    video.removeEventListener(
+                        "canplay",
+                        handleReady
+                    );
+
+                    resolve();
+                };
+
+                video.addEventListener(
+                    "canplay",
+                    handleReady,
+                    { once: true }
+                );
+            });
+        }
+
+        async function startFirstVideo() {
+            if (transitionInProgress) {
+                return;
+            }
+
+            transitionInProgress = true;
+            beginButton.disabled = true;
+
+            try {
+                await waitUntilPlayable(activeVideo);
+
+                introScreen.style.display = "none";
+
+                activeVideo.classList.add("active");
+                activeVideo.currentTime = 0;
+
+                await activeVideo.play();
+
+                preloadNextVideo();
+            } catch (error) {
+                console.error(
+                    "The first video could not start:",
+                    error
+                );
+
+                beginButton.disabled = false;
+                introScreen.style.display = "flex";
+            } finally {
+                transitionInProgress = false;
+            }
+        }
+
+        function enableInteraction() {
+            waitingForClick = true;
+            clickLayer.classList.add("enabled");
+        }
+
+        function disableInteraction() {
+            waitingForClick = false;
+            clickLayer.classList.remove("enabled");
+        }
+
+        async function playNextVideo() {
+            if (
+                !waitingForClick ||
+                transitionInProgress ||
+                studyFinished
+            ) {
+                return;
+            }
+
+            transitionInProgress = true;
+            disableInteraction();
+
+            const nextIndex = currentIndex + 1;
+
+            if (nextIndex >= videoFiles.length) {
+                finishStudy();
+                return;
+            }
+
+            try {
+                await waitUntilPlayable(standbyVideo);
+
+                standbyVideo.currentTime = 0;
+                await standbyVideo.play();
+
+                standbyVideo.classList.add("active");
+                activeVideo.classList.remove("active");
+
+                activeVideo.pause();
+                activeVideo.removeAttribute("src");
+                activeVideo.load();
+
+                const previousVideo = activeVideo;
+                activeVideo = standbyVideo;
+                standbyVideo = previousVideo;
+
+                currentIndex = nextIndex;
+                preloadNextVideo();
+            } catch (error) {
+                console.error(
+                    "The next video could not start:",
+                    error
+                );
+
+                enableInteraction();
+            } finally {
+                transitionInProgress = false;
+            }
+        }
+
+        function finishStudy() {
+            if (studyFinished) {
+                return;
+            }
+
+            studyFinished = true;
+            disableInteraction();
+
+            activeVideo.pause();
+            standbyVideo.pause();
+
+            activeVideo.classList.remove("active");
+            standbyVideo.classList.remove("active");
+
+            document.body.style.background = "#000";
+
+            window.parent.postMessage(
+                {
+                    type: "otome-study-complete",
+                    study: "study-z3"
+                },
+                "*"
+            );
+        }
+
+        function handleVideoEnded(event) {
+            if (
+                event.target !== activeVideo ||
+                studyFinished
+            ) {
+                return;
+            }
+
+            if (
+                currentIndex ===
+                videoFiles.length - 1
+            ) {
+                finishStudy();
+            } else {
+                enableInteraction();
+            }
+        }
+
+        videoA.addEventListener(
+            "ended",
+            handleVideoEnded
+        );
+
+        videoB.addEventListener(
+            "ended",
+            handleVideoEnded
+        );
+
+        beginButton.addEventListener(
+            "click",
+            startFirstVideo
+        );
+
+        clickLayer.addEventListener(
+            "click",
+            playNextVideo
+        );
+
+        clickLayer.addEventListener(
+            "keydown",
+            function (event) {
+                if (
+                    event.key === "Enter" ||
+                    event.key === " "
+                ) {
+                    event.preventDefault();
+                    playNextVideo();
+                }
+            }
+        );
+
+        prepareVideo(videoA, 0);
+
+        window.setTimeout(function () {
+            beginButton.classList.add("show");
+        }, 3000);
+    </script>
+</body>
+</html>
